@@ -13,7 +13,7 @@ import os
 import signal
 import csv
 
-# === 전역 변수 선언 ===
+# 
 image = np.empty(shape=[0])
 bridge = CvBridge()
 pub = None
