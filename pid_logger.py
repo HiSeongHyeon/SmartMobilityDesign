@@ -27,7 +27,8 @@ start_time = time.time()
 init_time = start_time
 
 # Python 2용 파일 저장: newline 인자 제거, 'wb' 모드 사용
-log_file = open("tracking_error_log.csv", 'wb')
+csv_path = os.path.join(os.getcwd(), "tracking_error_log.csv")
+log_file = open(csv_path, 'wb')
 log_writer = csv.writer(log_file)
 log_writer.writerow(["Time(s)", "Target", "Center", "Error", "PID_Output"])
 
