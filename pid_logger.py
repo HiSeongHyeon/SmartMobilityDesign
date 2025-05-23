@@ -13,7 +13,6 @@ import os
 import signal
 import csv
 
-# 
 image = np.empty(shape=[0])
 bridge = CvBridge()
 pub = None
@@ -27,10 +26,10 @@ prev_error = 0.0
 start_time = time.time()
 init_time = start_time
 
-log_file = open("tracking_error_log.csv", mode='w', newline='')
+# Python 2용 파일 저장: newline 인자 제거, 'wb' 모드 사용
+log_file = open("tracking_error_log.csv", 'wb')
 log_writer = csv.writer(log_file)
 log_writer.writerow(["Time(s)", "Target", "Center", "Error", "PID_Output"])
-
 
 def signal_handler(sig, frame):
     global log_file
@@ -39,9 +38,7 @@ def signal_handler(sig, frame):
     os.system('killall -9 python rosout')
     sys.exit(0)
 
-
 signal.signal(signal.SIGINT, signal_handler)
-
 
 def PID(input_data, kp, ki, kd):
     global start_time, prev_error, i_error, log_writer, init_time
@@ -58,19 +55,20 @@ def PID(input_data, kp, ki, kd):
     output = p_error + i_error + d_error
     prev_error = error
 
-    output = max(min(output, 50), -50)
+    if output > 50:
+        output = 50
+    elif output < -50:
+        output = -50
 
     elapsed = round(end_time - init_time, 4)
-    print(f"[{elapsed}s] Target=320 | Center={input_data} | Error={error:.2f} | PID Output={output:.2f}")
+    print("[%0.4fs] Target=320 | Center=%d | Error=%.2f | PID Output=%.2f" % (elapsed, input_data, error, output))
     log_writer.writerow([elapsed, 320, input_data, round(error, 4), round(output, 4)])
 
     return -output
 
-
 def img_callback(data):
     global image
     image = bridge.imgmsg_to_cv2(data, "bgr8")
-
 
 def drive(Angle, Speed): 
     global pub
@@ -78,7 +76,6 @@ def drive(Angle, Speed):
     msg.angle = Angle
     msg.speed = Speed
     pub.publish(msg)
-
 
 def draw_lines(img, lines):
     global Offset
@@ -88,7 +85,6 @@ def draw_lines(img, lines):
         img = cv2.line(img, (x1, y1+Offset), (x2, y2+Offset), color, 2)
     return img
 
-
 def draw_rectangle(img, lpos, rpos, offset=0):
     center = (lpos + rpos) // 2
     cv2.rectangle(img, (lpos - 5, 15 + offset), (lpos + 5, 25 + offset), (0, 255, 0), 2)
@@ -96,7 +92,6 @@ def draw_rectangle(img, lpos, rpos, offset=0):
     cv2.rectangle(img, (center-5, 15 + offset), (center+5, 25 + offset), (0, 255, 0), 2)
     cv2.rectangle(img, (315, 15 + offset), (325, 25 + offset), (0, 0, 255), 2)
     return img
-
 
 def divide_left_right(lines):
     global Width
@@ -129,7 +124,6 @@ def divide_left_right(lines):
 
     return left_lines, right_lines
 
-
 def get_line_params(lines):
     x_sum, y_sum, m_sum = 0.0, 0.0, 0.0
     size = len(lines)
@@ -146,7 +140,6 @@ def get_line_params(lines):
     b = y_avg - m * x_avg
     return m, b
 
-
 def get_line_pos(img, lines, left=False, right=False):
     global Width, Height, Offset, Gap
     m, b = get_line_params(lines)
@@ -160,7 +153,6 @@ def get_line_pos(img, lines, left=False, right=False):
         x2 = ((Height/2) - b) / float(m)
         cv2.line(img, (int(x1), Height), (int(x2), int(Height/2)), (255, 0, 0), 3)
     return img, int(pos)
-
 
 def process_image(frame):
     global Width, Offset, Gap
@@ -182,13 +174,12 @@ def process_image(frame):
     cv2.imshow('calibration', frame)
     return lpos, rpos
 
-
 def start():
     global pub, image
     rospy.init_node('auto_drive')
     pub = rospy.Publisher('xycar_motor', xycar_motor, queue_size=1)
     image_sub = rospy.Subscriber("/usb_cam/image_raw", Image, img_callback)
-    print("---------- Xycar A2 v1.0 with Logging ----------")
+    print("---------- Xycar A2 v1.0 with Logging (Python 2) ----------")
     rospy.sleep(2)
 
     while True:
@@ -201,7 +192,6 @@ def start():
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
     rospy.spin()
-
 
 if __name__ == '__main__':
     start()

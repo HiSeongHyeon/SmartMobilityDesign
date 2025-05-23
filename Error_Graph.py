@@ -1,10 +1,10 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# CSV 파일 로드
+# 
 df = pd.read_csv("tracking_error_log.csv")
 
-# 그래프 출력
+# 
 plt.figure(figsize=(12, 6))
 
 # Error Plot
