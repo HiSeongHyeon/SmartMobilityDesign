@@ -13,6 +13,10 @@ import sys
 import os
 import signal
 
+from state import Perception
+from state import Index
+from obstacle import Obstacle
+
 def PID(input_data, kp, ki, kd):
     global start_time, end_time, prev_error, i_error
     end_time = time.time()
@@ -224,38 +228,49 @@ def process_image(frame):
 
     return lpos, rpos
 
-def start():
-    global pub
-    global image
-    global cap
-    global Width, Height
+class PROJECT:
+    def __init__(self) :
+        global pub
+        global image
+        global cap
+        global Width, Height
+        self.perception = Perception()
+        self.obstacle = Obstacle()
+        rospy.init_node('auto_drive')
+        pub = rospy.Publisher('xycar_motor', xycar_motor, queue_size=1)
 
-    rospy.init_node('auto_drive')
-    pub = rospy.Publisher('xycar_motor', xycar_motor, queue_size=1)
+        image_sub = rospy.Subscriber("/usb_cam/image_raw", Image, img_callback)
+        print "---------- Xycar A2 v1.0 ----------"
+        rospy.sleep(2)
 
-    image_sub = rospy.Subscriber("/usb_cam/image_raw", Image, img_callback)
-    print "---------- Xycar A2 v1.0 ----------"
-    rospy.sleep(2)
 
-    while True:
-        while not image.size == (640*480*3):
-            continue
+    def start(self):
+        index, line_pos, obstacle_pos, tunnel_pos = self.perception.cal
+        if(index == Index.General):
 
-        lpos, rpos = process_image(image)
+            while True:
+                while not image.size == (640*480*3):
+                    continue
 
-        center = (lpos + rpos) / 2
-        angle = PID(center, 0.45, 0.0007, 0.25)
-        speed = 2
-        drive(angle, speed)
+                lpos, rpos = process_image(image)
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+                center = (lpos + rpos) / 2
+                angle = PID(center, 0.45, 0.0007, 0.25)
+                speed = 2
+                drive(angle, speed)
 
-    rospy.spin()
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
+        elif(index == Index.Obstacle):
+            self.obstacle.drive()
+        elif(index == Index.Crosswalk):
+            self.crosswalk.drive()
+        
+        rospy.spin()
 
 if __name__ == '__main__':
     i_error = 0.0
     prev_error = 0.0
     start_time = time.time()
-
-    start()
+    Project = PROJECT()
+    Project.start()
