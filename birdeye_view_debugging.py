@@ -10,17 +10,11 @@ from std_msgs.msg import String
 from xycar_msgs.msg import xycar_motor
 
 # ==========================
-# Bird-eye view 설정 (src/dst 좌표)
-# ==========================
-src_pts = np.float32([[200, 300], [440, 300], [100, 480], [540, 480]])
-dst_pts = np.float32([[200, 0], [440, 0], [200, 480], [440, 480]])
-M_perspective = cv2.getPerspectiveTransform(src_pts, dst_pts)
-
-# ==========================
 # 전역 변수 설정
 # ==========================
 
 image = np.empty(shape=[0])
+raw_image = None
 bridge = CvBridge()
 pub = None
 info_pub = None
@@ -39,10 +33,7 @@ crosswalk_detected = False
 stop_completed = False
 horizontal_line_detected = False
 
-# ==========================
 # 카메라 보정 파라미터
-# ==========================
-
 mtx = np.array([[340.876013, 0.000000, 333.212353],
                 [0.000000, 341.790625, 241.433953],
                 [0.000000, 0.000000, 1.000000]])
@@ -50,6 +41,29 @@ mtx = np.array([[340.876013, 0.000000, 333.212353],
 dist = np.array([-0.302220, 0.069858, 0.000204, -0.002379, 0.000000])
 
 cal_mtx, cal_roi = cv2.getOptimalNewCameraMatrix(mtx, dist, (Width, Height), 1, (Width, Height))
+
+# Perspective points
+src_pts = []
+dst_pts = []
+matrix_ready = False
+M_perspective = None
+
+# ==========================
+# 마우스 콜백 함수
+# ==========================
+
+def mouse_callback(event, x, y, flags, param):
+    global src_pts, dst_pts, matrix_ready
+    if event == cv2.EVENT_LBUTTONDOWN:
+        if len(src_pts) < 4:
+            src_pts.append([x, y])
+            print("src_pts[%d] = [%d, %d]" % (len(src_pts)-1, x, y))
+        elif len(dst_pts) < 4:
+            dst_pts.append([x, y])
+            print("dst_pts[%d] = [%d, %d]" % (len(dst_pts)-1, x, y))
+        if len(src_pts) == 4 and len(dst_pts) == 4:
+            matrix_ready = True
+            print("Perspective points are set.")
 
 # ==========================
 # 유틸리티 함수
@@ -95,17 +109,30 @@ def drive(angle, speed):
     pub.publish(msg)
 
 def img_callback(data):
-    global image
-    raw_image = bridge.imgmsg_to_cv2(data, "bgr8")
-    tf_image = cv2.undistort(raw_image, mtx, dist, None, cal_mtx)
+    global image, raw_image, M_perspective, matrix_ready
+    raw = bridge.imgmsg_to_cv2(data, "bgr8")
+    undistorted = cv2.undistort(raw, mtx, dist, None, cal_mtx)
     x, y, w, h = cal_roi
-    tf_image = tf_image[y:y+h, x:x+w]
-    undistorted = cv2.resize(tf_image, (Width, Height))
-    image = cv2.warpPerspective(undistorted, M_perspective, (Width, Height))  # Bird-eye view 적용
+    tf_image = undistorted[y:y+h, x:x+w]
+    raw_image = cv2.resize(tf_image, (Width, Height))
+
+    if matrix_ready and M_perspective is None:
+        M_perspective = cv2.getPerspectiveTransform(np.float32(src_pts), np.float32(dst_pts))
+
+    if M_perspective is not None:
+        image = cv2.warpPerspective(raw_image, M_perspective, (Width, Height))
+        cv2.imshow("Bird-eye View", image)
+    else:
+        image = raw_image.copy()
+
+    # Draw clicked points on raw image
+    for pt in src_pts:
+        cv2.circle(raw_image, tuple(pt), 5, (0, 255, 255), -1)
+    for pt in dst_pts:
+        cv2.circle(raw_image, tuple(pt), 5, (255, 0, 255), -1)
 
     cv2.imshow("Raw", raw_image)
-    cv2.imshow("Undistorted", undistorted)
-    cv2.imshow("Bird-eye View", image)
+    cv2.setMouseCallback("Raw", mouse_callback)
 
 def count_lines_by_slope(lines, low, high):
     count = 0
@@ -150,7 +177,7 @@ def classify_line_region(frame):
             else:
                 result = "start_line"
 
-        cv2.putText(debug_img, "Detected: {}".format(result), (30, 40), cv2.FONT_HERSHEY_SIMPLEX,
+        cv2.putText(debug_img, "Detected: %s" % result, (30, 40), cv2.FONT_HERSHEY_SIMPLEX,
                     1, (0, 255, 255), 2)
         debug_img = draw_rectangle(debug_img, 230, 410, offset=Offset)
     else:
@@ -162,13 +189,17 @@ def classify_line_region(frame):
     return result
 
 def start():
-    global pub, info_pub, image, crosswalk_detected, stop_completed
+    global pub, info_pub, image, crosswalk_detected, stop_completed, M_perspective
+
     rospy.init_node('auto_drive')
     pub = rospy.Publisher('xycar_motor', xycar_motor, queue_size=1)
     info_pub = rospy.Publisher('xycar_info', String, queue_size=1)
     rospy.Subscriber("/usb_cam/image_raw", Image, img_callback)
     print("---------- Xycar A2 start ----------")
     rospy.sleep(2)
+
+    cv2.namedWindow("Raw")
+    cv2.setMouseCallback("Raw", mouse_callback)
 
     while not rospy.is_shutdown():
         if image.size != (640 * 480 * 3):
