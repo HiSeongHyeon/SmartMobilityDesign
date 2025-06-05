@@ -10,17 +10,11 @@ from std_msgs.msg import String
 from xycar_msgs.msg import xycar_motor
 
 # ==========================
-# Bird-eye view 설정 (src/dst 좌표)
-# ==========================
-src_pts = np.float32([[200, 300], [440, 300], [100, 480], [540, 480]])
-dst_pts = np.float32([[200, 0], [440, 0], [200, 480], [440, 480]])
-M_perspective = cv2.getPerspectiveTransform(src_pts, dst_pts)
-
-# ==========================
 # 전역 변수 설정
 # ==========================
 
 image = np.empty(shape=[0])
+raw_image = None
 bridge = CvBridge()
 pub = None
 info_pub = None
@@ -39,10 +33,7 @@ crosswalk_detected = False
 stop_completed = False
 horizontal_line_detected = False
 
-# ==========================
 # 카메라 보정 파라미터
-# ==========================
-
 mtx = np.array([[340.876013, 0.000000, 333.212353],
                 [0.000000, 341.790625, 241.433953],
                 [0.000000, 0.000000, 1.000000]])
@@ -51,139 +42,32 @@ dist = np.array([-0.302220, 0.069858, 0.000204, -0.002379, 0.000000])
 
 cal_mtx, cal_roi = cv2.getOptimalNewCameraMatrix(mtx, dist, (Width, Height), 1, (Width, Height))
 
+# Perspective points
+src_pts = []
+dst_pts = []
+matrix_ready = False
+M_perspective = None
+
+# ==========================
+# 마우스 콜백 함수
+# ==========================
+
+def mouse_callback(event, x, y, flags, param):
+    global src_pts, dst_pts, matrix_ready
+    if event == cv2.EVENT_LBUTTONDOWN:
+        if len(src_pts) < 4:
+            src_pts.append([x, y])
+            print("src_pts[%d] = [%d, %d]" % (len(src_pts)-1, x, y))
+        elif len(dst_pts) < 4:
+            dst_pts.append([x, y])
+            print("dst_pts[%d] = [%d, %d]" % (len(dst_pts)-1, x, y))
+        if len(src_pts) == 4 and len(dst_pts) == 4:
+            matrix_ready = True
+            print("Perspective points are set.")
+
 # ==========================
 # 유틸리티 함수
 # ==========================
-
-
-# left lines, right lines, diagonal lines, horizental lines
-def divide_left_right(lines):
-    global Width, Height
-    global Offset
-    low_slope_threshold = 0
-    high_slope_threshold = 10
-
-    # calculate slope & filtering with threshold
-    slopes = []
-    new_lines = []
-
-    for line in lines:
-        x1, y1, x2, y2 = line[0]
-
-        if x2 - x1 == 0:
-            slope = 0
-        else:
-            slope = float(y2-y1) / float(x2-x1)
-        
-        if abs(slope) >= low_slope_threshold and abs(slope) < high_slope_threshold:
-            slopes.append(slope)
-            new_lines.append(line[0])
-
-
-    # divide lines left to right
-    left_lines = []
-    right_lines = []
-
-
-    for j in range(len(slopes)):
-        Line = new_lines[j]
-        slope = slopes[j]
-
-        x1, y1, x2, y2 = Line
-        
-        if (slope < 0) and (x2 < Width/2 - 90):
-            left_lines.append([Line.tolist()])
-        elif (slope > 0) and (x1 > Width/2 + 90):
-            right_lines.append([Line.tolist()])
-
-    return left_lines, right_lines
-
-
-
-# get average m, b of lines
-def get_line_params(lines):
-    # sum of x, y, m
-    x_sum = 0.0
-    y_sum = 0.0
-    m_sum = 0.0
-
-    size = len(lines)
-    if size == 0:
-        return 0, 0
-
-    for line in lines:
-        x1, y1, x2, y2 = line[0]
-        
-        x_sum += x1 + x2
-        y_sum += y1 + y2
-        if(x2==x1):
-            m_sum += 100
-        else:
-            m_sum += float(y2 - y1) / float(x2 - x1)
-
-    x_avg = x_sum / (size * 2)
-    y_avg = y_sum / (size * 2)
-    m = m_sum / size
-    b = y_avg - m * x_avg
-
-    return m, b
-
-# get lpos, rpos
-def get_line_pos(img, lines, left=False, right=False, diagonal=False):
-    global Width, Height
-    global Offset, Gap
-
-    m, b = get_line_params(lines)
-
-
-    if m == 0:
-        if left:
-            pos = 0
-        elif right:
-            pos = Width
-    else:
-        y = Gap / 2
-        pos = (y - b) / m
-
-        b += Offset
-        x1 = (Height - b) / float(m)
-        x2 = ((Height/2) - b) / float(m)
-
-        cv2.line(img, (int(x1), Height), (int(x2), (Height/2)), (255, 0,0), 3)
-
-    return img, int(pos), [m,b]
-
-
-
-def filter_lines_between_left_right(lines, left_line, right_line):
-    """
-    lines: [[x1, y1, x2, y2], ...] 형태의 라인 리스트 (diagonal_U_lines, diagonal_L_lines 등)
-    left_line, right_line: [m, b] 형태
-    반환: 좌/우 차선 사이에 있는 라인만 리스트로 반환
-    """
-    filtered = []
-    m_left, b_left = left_line
-    m_right, b_right = right_line
-
-    for line in lines:
-        x1, y1, x2, y2 = line[0]
-        mid_x = (x1 + x2) / 2.0
-        mid_y = (y1 + y2) / 2.0
-
-        # mid_y에서의 left/right 차선의 x좌표
-        x_left = (mid_y - b_left) / m_left if m_left != 0 else 0
-        x_right = (mid_y - b_right) / m_right if m_right != 0 else 0
-
-        # left_line과 right_line 사이에 있는지 판별
-        if x_left < x_right:
-            if x_left <= mid_x <= x_right:
-                filtered.append([line[0]])
-        else:
-            if x_right <= mid_x <= x_left:
-                filtered.append([line[0]])
-
-    return filtered
-
 
 def draw_lines(img, lines):
     global Offset
@@ -225,8 +109,30 @@ def drive(angle, speed):
     pub.publish(msg)
 
 def img_callback(data):
-    global image
-    image = bridge.imgmsg_to_cv2(data, "bgr8")
+    global image, raw_image, M_perspective, matrix_ready
+    raw = bridge.imgmsg_to_cv2(data, "bgr8")
+    undistorted = cv2.undistort(raw, mtx, dist, None, cal_mtx)
+    x, y, w, h = cal_roi
+    tf_image = undistorted[y:y+h, x:x+w]
+    raw_image = cv2.resize(tf_image, (Width, Height))
+
+    if matrix_ready and M_perspective is None:
+        M_perspective = cv2.getPerspectiveTransform(np.float32(src_pts), np.float32(dst_pts))
+
+    if M_perspective is not None:
+        image = cv2.warpPerspective(raw_image, M_perspective, (Width, Height))
+        cv2.imshow("Bird-eye View", image)
+    else:
+        image = raw_image.copy()
+
+    # Draw clicked points on raw image
+    for pt in src_pts:
+        cv2.circle(raw_image, tuple(pt), 5, (0, 255, 255), -1)
+    for pt in dst_pts:
+        cv2.circle(raw_image, tuple(pt), 5, (255, 0, 255), -1)
+
+    cv2.imshow("Raw", raw_image)
+    cv2.setMouseCallback("Raw", mouse_callback)
 
 def count_lines_by_slope(lines, low, high):
     count = 0
@@ -246,24 +152,12 @@ def classify_line_region(frame):
     blur = cv2.GaussianBlur(gray, (5, 5), 0)
     edge = cv2.Canny(blur, 60, 70)
     roi = edge[Offset:Offset+Gap, :Width]
-    all_lines = cv2.HoughLinesP(roi, 1, math.pi/180, 30, minLineLength=30, maxLineGap=10)
+    lines = cv2.HoughLinesP(roi, 1, math.pi/180, 30, minLineLength=30, maxLineGap=10)
 
     debug_img = frame.copy()
 
-
-    # divide left, right lines
-    if all_lines is None:
-        return "none", 0, 640
-    left_lines, right_lines = divide_left_right(all_lines)
-
-    # get center of lines
-    frame, lpos, left_line = get_line_pos(frame, left_lines, left=True)
-    frame, rpos, right_line = get_line_pos(frame, right_lines, right=True)
-
-    between_lines = filter_lines_between_left_right(all_lines, left_line, right_line)
-
-    if between_lines is not None:
-        lines = [line[0] for line in between_lines]
+    if lines is not None:
+        lines = [line[0] for line in lines]
         lines_reshaped = [[x1, y1, x2, y2] for x1, y1, x2, y2 in lines]
         draw_lines(debug_img, [[line] for line in lines_reshaped])
 
@@ -283,21 +177,20 @@ def classify_line_region(frame):
             else:
                 result = "start_line"
 
-        cv2.putText(debug_img, "Detected: {}".format(result), (30, 40), cv2.FONT_HERSHEY_SIMPLEX,
+        cv2.putText(debug_img, "Detected: %s" % result, (30, 40), cv2.FONT_HERSHEY_SIMPLEX,
                     1, (0, 255, 255), 2)
-
         debug_img = draw_rectangle(debug_img, 230, 410, offset=Offset)
-
     else:
         result = "none"
         cv2.putText(debug_img, "No lines detected", (30, 40), cv2.FONT_HERSHEY_SIMPLEX,
                     1, (0, 0, 255), 2)
 
     cv2.imshow("Road Line Detection", debug_img)
-    return result, lpos, rpos
+    return result
 
 def start():
-    global pub, info_pub, image, crosswalk_detected, stop_completed
+    global pub, info_pub, image, crosswalk_detected, stop_completed, M_perspective
+
     rospy.init_node('auto_drive')
     pub = rospy.Publisher('xycar_motor', xycar_motor, queue_size=1)
     info_pub = rospy.Publisher('xycar_info', String, queue_size=1)
@@ -305,11 +198,14 @@ def start():
     print("---------- Xycar A2 start ----------")
     rospy.sleep(2)
 
+    cv2.namedWindow("Raw")
+    cv2.setMouseCallback("Raw", mouse_callback)
+
     while not rospy.is_shutdown():
         if image.size != (640 * 480 * 3):
             continue
 
-        result, lpos, rpos = classify_line_region(image)
+        result = classify_line_region(image)
 
         if result == "crosswalk" and not stop_completed:
             print("crosswalk")
@@ -322,11 +218,9 @@ def start():
         elif result == "start_line":
             print("start line is detected")
 
-        center = (lpos + rpos) / 2
-        angle = PID(center, 0.35, 0.0005, 0.1)
-        speed = 5
-        drive(angle, speed)
-
+        center = Width // 2
+        angle = PID(center, 0.45, 0.0007, 0.25)
+        drive(angle, 5)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
