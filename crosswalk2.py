@@ -28,6 +28,107 @@ crosswalk_detected = False
 stop_completed = False
 horizontal_line_detected = False
 
+# left lines, right lines, diagonal lines, horizental lines
+def divide_left_right(lines):
+    global Width, Height
+    global Offset
+    low_slope_threshold = 0
+    high_slope_threshold = 10
+
+    # calculate slope & filtering with threshold
+    slopes = []
+    new_lines = []
+
+    for line in lines:
+        x1, y1, x2, y2 = line[0]
+
+        if x2 - x1 == 0:
+            slope = 0
+        else:
+            slope = float(y2-y1) / float(x2-x1)
+        
+        if abs(slope) >= low_slope_threshold and abs(slope) < high_slope_threshold:
+            slopes.append(slope)
+            new_lines.append(line[0])
+
+
+    # divide lines left to right
+    left_lines = []
+    right_lines = []
+
+
+    for j in range(len(slopes)):
+        Line = new_lines[j]
+        slope = slopes[j]
+
+        x1, y1, x2, y2 = Line
+        
+        if (slope < 0) and (x2 < Width/2 - 90):
+            left_lines.append([Line.tolist()])
+        elif (slope > 0) and (x1 > Width/2 + 90):
+            right_lines.append([Line.tolist()])
+
+    return left_lines, right_lines
+
+
+
+# get lpos, rpos
+def get_line_pos(img, lines, left=False, right=False, diagonal=False):
+    global Width, Height
+    global Offset, Gap
+
+    m, b = get_line_params(lines)
+
+
+    if m == 0:
+        if left:
+            pos = 0
+        elif right:
+            pos = Width
+    else:
+        y = Gap / 2
+        pos = (y - b) / m
+
+        b += Offset
+        x1 = (Height - b) / float(m)
+        x2 = ((Height/2) - b) / float(m)
+
+        cv2.line(img, (int(x1), Height), (int(x2), (Height/2)), (255, 0,0), 3)
+
+    return img, int(pos), [m,b]
+
+
+
+def filter_lines_between_left_right(lines, left_line, right_line):
+    """
+    lines: [[x1, y1, x2, y2], ...] 형태의 라인 리스트 (diagonal_U_lines, diagonal_L_lines 등)
+    left_line, right_line: [m, b] 형태
+    반환: 좌/우 차선 사이에 있는 라인만 리스트로 반환
+    """
+    filtered = []
+    m_left, b_left = left_line
+    m_right, b_right = right_line
+
+    for line in lines:
+        x1, y1, x2, y2 = line[0]
+        mid_x = (x1 + x2) / 2.0
+        mid_y = (y1 + y2) / 2.0
+
+        # mid_y에서의 left/right 차선의 x좌표
+        x_left = (mid_y - b_left) / m_left if m_left != 0 else 0
+        x_right = (mid_y - b_right) / m_right if m_right != 0 else 0
+
+        # left_line과 right_line 사이에 있는지 판별
+        if x_left < x_right:
+            if x_left <= mid_x <= x_right:
+                filtered.append([line[0]])
+        else:
+            if x_right <= mid_x <= x_left:
+                filtered.append([line[0]])
+
+    return filtered
+
+
 def draw_lines(img, lines):
     global Offset
     for line in lines:
@@ -89,12 +190,24 @@ def classify_line_region(frame):
     blur = cv2.GaussianBlur(gray, (5, 5), 0)
     edge = cv2.Canny(blur, 60, 70)
     roi = edge[Offset:Offset+Gap, :Width]
-    lines = cv2.HoughLinesP(roi, 1, math.pi/180, 30, minLineLength=30, maxLineGap=10)
+    all_lines = cv2.HoughLinesP(roi, 1, math.pi/180, 30, minLineLength=30, maxLineGap=10)
 
     debug_img = frame.copy()
 
-    if lines is not None:
-        lines = [line[0] for line in lines]
+
+    # divide left, right lines
+    if all_lines is None:
+        return "none", 0, 640
+    left_lines, right_lines = divide_left_right(all_lines)
+
+    # get center of lines
+    frame, lpos, left_line = get_line_pos(frame, left_lines, left=True)
+    frame, rpos, right_line = get_line_pos(frame, right_lines, right=True)
+
+    between_lines = filter_lines_between_left_right(all_lines, left_line, right_line)
+
+    if between_lines is not None:
+        lines = [line[0] for line in between_lines]
         lines_reshaped = [[x1, y1, x2, y2] for x1, y1, x2, y2 in lines]
         draw_lines(debug_img, [[line] for line in lines_reshaped])
 
@@ -125,7 +238,7 @@ def classify_line_region(frame):
                     1, (0, 0, 255), 2)
 
     cv2.imshow("Road Line Detection", debug_img)
-    return result
+    return result, lpos, rpos
 
 def start():
     global pub, info_pub, image, crosswalk_detected, stop_completed
@@ -140,7 +253,7 @@ def start():
         if image.size != (640 * 480 * 3):
             continue
 
-        result = classify_line_region(image)
+        result, lpos, rpos = classify_line_region(image)
 
         if result == "crosswalk" and not stop_completed:
             print("crosswalk")
@@ -153,9 +266,11 @@ def start():
         elif result == "start_line":
             print("start line is detected")
 
-        center = Width // 2
-        angle = PID(center, 0.45, 0.0007, 0.25)
-        drive(angle, 5)
+        center = (lpos + rpos) / 2
+        angle = PID(center, 0.35, 0.0005, 0.1)
+        speed = 5
+        drive(angle, speed)
+
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
