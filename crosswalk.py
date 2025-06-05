@@ -82,7 +82,7 @@ def classify_line_region(frame):
     diagonal_count = count_lines_by_slope(lines, 0.3, 2.0)
     horizontal_count = count_lines_by_slope(lines, 10.0, float('inf'))
 
-    horizontal_line_detected = horizontal_count >= 1
+    horizontal_line_detected = horizontal_count >= 3
 
     if horizontal_line_detected:
         if vertical_count >= 6:

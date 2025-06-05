@@ -122,7 +122,7 @@ def divide_left_right(lines):
         slope = slopes[j]
 
         x1, y1, x2, y2 = Line
-
+        
         if (slope < 0) and (x2 < Width/2 - 90):
             left_lines.append([Line.tolist()])
         elif (slope > 0) and (x1 > Width/2 + 90):
@@ -245,7 +245,7 @@ def start():
 
         center = (lpos + rpos) / 2
         angle = PID(center, 0.45, 0.0007, 0.25)
-        speed = 2
+        speed = 5
         drive(angle, speed)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):

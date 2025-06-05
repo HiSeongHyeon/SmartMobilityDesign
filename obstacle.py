@@ -22,7 +22,7 @@ class Obstacle:
             self.flag = 2
             
         if(self.pre_flag != self.flag):
-            self.drive_time = rostime 
+            self.drive_time = rospy.Time.now
             self.pre_flag = self.flag
 
 
