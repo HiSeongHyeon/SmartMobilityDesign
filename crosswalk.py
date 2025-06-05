@@ -117,7 +117,7 @@ def start():
         if result == "crosswalk" and not stop_completed:
             info_pub.publish("횡단보도 정지! 5초 대기 중...")
             drive(0, 0)
-            time.sleep(5)
+            time.sleep(5) 
             stop_completed = True
             crosswalk_detected = False
         elif result == "stop_line":
