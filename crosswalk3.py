@@ -9,6 +9,10 @@
 1. 정지선, 횡단보도 인식을 위한 parameter 값 tuning
 2. 차선 인식 ROI 설정
 3. 
+
+<효본이형네>
+1. Bird Eye View 안쓸 때 -> 0.2 ~ 0.5 : 대각선 // 0.7 이상 수직선
+2. 횡단보도의 경우, 횡단보도용 roi를 설정했고, 수직선 1개가 여러개로 인식되는 문제 발생 -> 1개만 인식되어도 횡단보도라고 판단하도록 코드 변경!
 """
 
 import rospy
@@ -41,7 +45,13 @@ M_perspective = cv2.getPerspectiveTransform(src_pts, dst_pts)
 # ==========================
 # 전역 변수 설정
 # ==========================
-image = np.empty(shape=[0])
+DEBUG = False
+
+raw_image = np.empty(shape=[0])
+calibration_image = np.empty(shape=[0])
+bird_eye_image = np.empty(shape=[0])
+
+
 bridge = CvBridge()
 pub = None
 info_pub = None
@@ -61,7 +71,7 @@ start_time = time.time()
 crosswalk_detected = False
 stop_completed = False
 horizontal_line_detected = False
-BIRD_EYE = True
+
 
 # ==========================
 # 카메라 보정 파라미터
@@ -162,19 +172,26 @@ def drive(angle, speed):
     pub.publish(msg)
 
 def img_callback(data):
-    global image
+    global raw_image, calibration_image, bird_eye_image
+    # 만약 global이 없으면, 그 변수는 함수 내에서 지역 변수로 새롭게 생성
     raw_image = bridge.imgmsg_to_cv2(data, "bgr8")
+
+    # 1. 카메라 왜곡 보정
     tf_image = cv2.undistort(raw_image, mtx, dist, None, cal_mtx)
     x, y, w, h = cal_roi
     tf_image = tf_image[y:y + h, x:x + w]
     undistorted = cv2.resize(tf_image, (Width, Height))
+    image = cv2.warpPerspective(undistorted, M_perspective, (Width, Height))
 
-    # BIRD_EYE 적용 여부
-    if BIRD_EYE:
-        image = cv2.warpPerspective(undistorted, M_perspective, (Width, Height))
-    else:
-        image = undistorted.copy()
+    # 5. 시각화
+    if(DEBUG == True):
+        cv2.imshow("Raw View", raw_image)
+    cv2.imshow("Calibration View", calibration_image)
+    cv2.imshow("Bird Eye View", bird_eye_image)
+    cv2.waitKey(1)
 
+    # return value는 자동으로 버려짐
+    # return calibration_image, bird_eye_image
 
 # **주어진 직선들의 기울기(slope)**를 계산하고, 
 # 기울기의 절댓값이 특정 범위 (low ~ high)에 속하는 직선의 개수를 세는 함수입니다.
@@ -189,16 +206,60 @@ def count_lines_by_slope(lines, low, high):
             count += 1
     return count
 
+# 기존(pid_hough_drive.py)의 lpos, rpos
+def divide_left_right_original(lines):
+    global Width
+
+    low_slope_threshold = 0
+    high_slope_threshold = 10
+
+    # calculate slope & filtering with threshold
+    slopes = []
+    new_lines = []
+
+    for line in lines:
+        x1, y1, x2, y2 = line[0]
+
+        if x2 - x1 == 0:
+            slope = 0
+        else:
+            slope = float(y2-y1) / float(x2-x1)
+        
+        if abs(slope) > low_slope_threshold and abs(slope) < high_slope_threshold:
+            slopes.append(slope)
+            new_lines.append(line[0])
+
+    # divide lines left to right
+    left_lines = []
+    right_lines = []
+
+    for j in range(len(slopes)):
+        Line = new_lines[j]
+        slope = slopes[j]
+
+        x1, y1, x2, y2 = Line
+
+        if (slope < 0) and (x2 < Width/2 - 90):
+            left_lines.append([Line.tolist()])
+        elif (slope > 0) and (x1 > Width/2 + 90):
+            right_lines.append([Line.tolist()])
+
+    return left_lines, right_lines
+
 def divide_left_right(lines):
-    low_thresh, high_thresh = 0.1, 20
+    # 하이퍼 파라미터 
+    # |slope| < 0.1 혹은 |slope| > 20인 경우는 건너뜁니다.
+    low_thresh, high_thresh = 0.1, 20 
     left_lines, right_lines = [], []
     for line in lines:
         x1, y1, x2, y2 = line[0]
         slope = float(y2 - y1) / (x2 - x1 + 1e-5)
         if abs(slope) < low_thresh or abs(slope) > high_thresh:
             continue
+        # 기울기가 음수이고, x2가 이미지 좌측에 있으면 왼쪽 차선 후보로 판단
         if slope < 0 and x2 < Width // 2 - 90:
             left_lines.append([line[0]])
+        # 기울기가 양수이고, x1이 이미지 우측에 있으면 오른쪽 차선 후보로 판단
         elif slope > 0 and x1 > Width // 2 + 90:
             right_lines.append([line[0]])
     return left_lines, right_lines
@@ -212,12 +273,18 @@ def get_line_params(lines):
         x_sum += x1 + x2
         y_sum += y1 + y2
         m_sum += float(y2 - y1) / (x2 - x1 + 1e-5)
+
+    # 모든 직선의 중간점을 평균 내어 대표 점 (xavg,yavg)(xavg​,yavg​) 계산
     x_avg = x_sum / (2 * len(lines))
     y_avg = y_sum / (2 * len(lines))
     m = m_sum / len(lines)
     b = y_avg - m * x_avg
+
+    # 직선 방정식 y=mx+b 형태에서 m과 b를 의미
     return m, b
 
+# 주어진 직선 그룹의 평균적인 위치(좌우 차선 위치)를 x 좌표로 계산하는 역할
+# 주로 차선 중심 위치를 계산하여 PID 제어의 기준점으로 사용
 def get_line_pos(img, lines, left=False, right=False):
     m, b = get_line_params(lines)
     if m == 0 and b == 0:
@@ -225,6 +292,85 @@ def get_line_pos(img, lines, left=False, right=False):
     y = Gap / 2
     pos = int((y - b) / m)
     return img, pos
+
+# 횡단보도인지?
+def is_crosswalk(bird_eye_frame):
+    """
+    Bird-Eye View 프레임에서 ROI 영역 내 수직선 개수를 바탕으로
+    횡단보도인지 여부를 판단
+    """
+    # ROI 설정
+    roi_x_start = 200
+    roi_x_end = 500
+    roi_y_start = 100
+    roi_y_end = 140
+    roi = bird_eye_frame[roi_x_start:roi_x_end, roi_y_start:roi_y_end]
+
+    # 전처리: 그레이스케일 → 블러 → 캐니 엣지
+    gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+    blur = cv2.GaussianBlur(gray, (5, 5), 0)
+    edge = cv2.Canny(blur, 60, 70)
+
+    # HoughLinesP로 직선 검출
+    lines = cv2.HoughLinesP(edge, 1, math.pi / 180, threshold=30,
+                            minLineLength=30, maxLineGap=10)
+
+    # 수직선 개수 세기
+    vertical_count = 0
+    if lines is not None:
+        for line in lines:
+            x1, y1, x2, y2 = line[0]
+            if x2 - x1 == 0:
+                slope = float('inf')
+            else:
+                slope = float(y2 - y1) / (x2 - x1)
+            if abs(slope) >= 2.0:  # 수직선 기준
+                vertical_count += 1
+
+    # 기준 이상이면 횡단보도로 판단
+    return vertical_count >= 1  # 수직선 4개 이상이면 횡단보도
+
+# show image and return lpos, rpos
+def process_image(frame):
+    global Width
+    global Offset, Gap
+
+    # gray
+    gray = cv2.cvtColor(frame,cv2.COLOR_BGR2GRAY)
+
+    # blur
+    kernel_size = 5
+    blur_gray = cv2.GaussianBlur(gray,(kernel_size, kernel_size), 0)
+
+    # canny edge
+    low_threshold = 60
+    high_threshold = 70
+    edge_img = cv2.Canny(np.uint8(blur_gray), low_threshold, high_threshold)
+
+    # HoughLinesP
+    roi = edge_img[Offset : Offset+Gap, 0 : Width]
+    all_lines = cv2.HoughLinesP(roi,1,math.pi/180,30,30,10)
+
+    # divide left, right lines
+    if all_lines is None:
+        return 0, 640
+    left_lines, right_lines = divide_left_right_original(all_lines)
+
+    # get center of lines
+    frame, lpos = get_line_pos(frame, left_lines, left=True)
+    frame, rpos = get_line_pos(frame, right_lines, right=True)
+
+    # draw lines
+    frame = draw_lines(frame, left_lines)
+    frame = draw_lines(frame, right_lines)
+    frame = cv2.line(frame, (230, 235), (410, 235), (255,255,255), 2)
+                                 
+    # draw rectangle
+    frame = draw_rectangle(frame, lpos, rpos, offset=Offset)
+    #roi2 = cv2.cvtColor(roi, cv2.COLOR_GRAY2BGR)
+    #roi2 = draw_rectangle(roi2, lpos, rpos)
+
+    return lpos, rpos
 
 def classify_line_region_and_lane(frame):
     global crosswalk_detected, stop_completed, horizontal_line_detected
@@ -286,31 +432,33 @@ def classify_line_region_and_lane(frame):
     return result, lpos, rpos
 
 def start():
-    global pub, info_pub, image, crosswalk_detected, stop_completed
+    global pub, info_pub, raw_image, calibration_image, bird_eye_image, crosswalk_detected, stop_completed
     rospy.init_node('auto_drive')
     pub = rospy.Publisher('xycar_motor', xycar_motor, queue_size=1)
     info_pub = rospy.Publisher('xycar_info', String, queue_size=1)
+
+    # 여기서 img_callback
     rospy.Subscriber("/usb_cam/image_raw", Image, img_callback)
     print("---------- Xycar A2 start ----------")
     rospy.sleep(2)
 
     while not rospy.is_shutdown():
-        if image.size != (640 * 480 * 3):
+        if calibration_image.size != (640 * 480 * 3):
             continue
 
-        result, lpos, rpos = classify_line_region_and_lane(image)
+        # 수정 1. 여기서 기존 프레임의 lpos, rpos 차선 인식으로 수행해야 함!
+        lpos, rpos = process_image(calibration_image)
         center = int((lpos + rpos) / 2.0)
 
-        if result == "crosswalk" and not stop_completed:
-            print("crosswalk")
+        # [횡단보도] 횡단보도 체크 함수!!
+        if(is_crosswalk(bird_eye_image) and not stop_completed):
             drive(0, 0)
             time.sleep(5)
             stop_completed = True
-            crosswalk_detected = False
-        elif result == "stop_line":
-            print("stop line is detected")
-        elif result == "start_line":
-            print("start line is detected")
+        # elif result == "stop_line":
+        #     print("stop line is detected")
+        # elif result == "start_line":
+        #     print("start line is detected")
 
         angle = PID(center, 0.45, 0.0007, 0.25)
         drive(angle, 5)
