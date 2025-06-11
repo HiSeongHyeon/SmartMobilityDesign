@@ -184,6 +184,30 @@ def img_callback(data):
     # 만약 global이 없으면, 그 변수는 함수 내에서 지역 변수로 새롭게 생성
     raw_image = bridge.imgmsg_to_cv2(data, "bgr8")
 
+    # 1. 카메라 왜곡 보정
+    tf_image = cv2.undistort(raw_image, mtx, dist, None, cal_mtx)
+    x, y, w, h = cal_roi
+    tf_image = tf_image[y:y + h, x:x + w]
+
+    # gray scale
+    gray_image = cv2.cvtColor(tf_image, cv2.COLOR_BGR2GRAY)
+
+    # 2. 원본 프레임 (리사이즈 + 보정만 된)
+    calibration_image = cv2.resize(gray_image, (Width, Height))
+
+    # 4. BEV 변환
+    bird_eye_image = cv2.warpPerspective(calibration_image, M_perspective, (Width, Height))
+
+    # 5. 시각화
+    if(DEBUG == True):
+        cv2.imshow("Raw View", raw_image)
+    cv2.imshow("Calibration View", calibration_image)
+    cv2.imshow("Bird Eye View", bird_eye_image)
+    cv2.waitKey(1)
+
+    # return value는 자동으로 버려짐
+    # return calibration_image, bird_eye_image
+
 # **주어진 직선들의 기울기(slope)**를 계산하고, 
 # 기울기의 절댓값이 특정 범위 (low ~ high)에 속하는 직선의 개수를 세는 함수입니다.
 def count_lines_by_slope(lines, low, high):
