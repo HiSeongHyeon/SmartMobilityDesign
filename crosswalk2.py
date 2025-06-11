@@ -21,6 +21,7 @@ M_perspective = cv2.getPerspectiveTransform(src_pts, dst_pts)
 # ==========================
 
 image = np.empty(shape=[0])
+raw_image = np.empty(shape=[0])
 bridge = CvBridge()
 pub = None
 info_pub = None
@@ -225,8 +226,22 @@ def drive(angle, speed):
     pub.publish(msg)
 
 def img_callback(data):
-    global image
-    image = bridge.imgmsg_to_cv2(data, "bgr8")
+    global image, raw_image, M_perspective
+    raw_image = bridge.imgmsg_to_cv2(data, "bgr8")
+    undistorted = cv2.undistort(raw_image, mtx, dist, None, cal_mtx)
+    x, y, w, h = cal_roi
+    tf_image = undistorted[y:y+h, x:x+w]
+    resize_image = cv2.resize(tf_image, (Width, Height))
+
+    if M_perspective is None:
+        M_perspective = cv2.getPerspectiveTransform(np.float32(src_pts), np.float32(dst_pts))
+
+    if M_perspective is not None:
+        image = cv2.warpPerspective(resize_image, M_perspective, (Width, Height))
+        cv2.imshow("Bird-eye View", image)
+    else:
+        image = resize_image.copy()
+
 
 def count_lines_by_slope(lines, low, high):
     count = 0
@@ -297,7 +312,7 @@ def classify_line_region(frame):
     return result, lpos, rpos
 
 def start():
-    global pub, info_pub, image, crosswalk_detected, stop_completed
+    global pub, info_pub, raw_image, image, crosswalk_detected, stop_completed
     rospy.init_node('auto_drive')
     pub = rospy.Publisher('xycar_motor', xycar_motor, queue_size=1)
     info_pub = rospy.Publisher('xycar_info', String, queue_size=1)
@@ -306,10 +321,10 @@ def start():
     rospy.sleep(2)
 
     while not rospy.is_shutdown():
-        if image.size != (640 * 480 * 3):
+        if raw_image.size != (640 * 480 * 3):
             continue
 
-        result, lpos, rpos = classify_line_region(image)
+        result, lpos, rpos = classify_line_region(raw_image)
 
         if result == "crosswalk" and not stop_completed:
             print("crosswalk")
