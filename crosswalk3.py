@@ -15,6 +15,7 @@
 2. 횡단보도의 경우, 횡단보도용 roi를 설정했고, 수직선 1개가 여러개로 인식되는 문제 발생 -> 1개만 인식되어도 횡단보도라고 판단하도록 코드 변경!
 """
 
+import threading
 import rospy
 import numpy as np
 import cv2, random, math, time
@@ -45,7 +46,8 @@ M_perspective = cv2.getPerspectiveTransform(src_pts, dst_pts)
 # ==========================
 # 전역 변수 설정
 # ==========================
-DEBUG = False
+lock = threading.Lock()
+
 
 raw_image = np.zeros((480, 640, 3), dtype=np.uint8)
 calibration_image = np.zeros((480, 640, 3), dtype=np.uint8)
@@ -77,8 +79,9 @@ horizontal_line_detected = False
 bird_eye_roi_x_start = 200
 bird_eye_roi_x_end = 440
 bird_eye_roi_y_start = 20
-bird_eye_roi_y_end = 150
-bird_eye_roi = bird_eye_image[bird_eye_roi_x_start:bird_eye_roi_x_end, bird_eye_roi_y_start:bird_eye_roi_y_end]
+bird_eye_roi_y_end = 180
+# bird_eye_roi = bird_eye_image[bird_eye_roi_x_start:bird_eye_roi_x_end], bird_eye_roi_y_start:bird_eye_roi_y_end
+bird_eye_roi = bird_eye_image[bird_eye_roi_y_start:bird_eye_roi_y_end, bird_eye_roi_x_start:bird_eye_roi_x_end]
 
 # ==========================
 # 카메라 보정 파라미터
@@ -288,34 +291,63 @@ def get_line_pos(img, lines, left=False, right=False):
 def is_crosswalk(bird_eye_frame):
     """
     Bird-Eye View 프레임에서 ROI 영역 내 수직선 개수를 바탕으로
-    횡단보도인지 여부를 판단
+    횡단보도인지 여부를 판단 (기울기를 각도로 변환하여 기준 적용)
     """
     global bird_eye_roi_x_start, bird_eye_roi_x_end, bird_eye_roi_y_start, bird_eye_roi_y_end, bird_eye_roi
 
-    # 전처리: 그레이스케일 → 블러 → 캐니 엣지
-    gray = cv2.cvtColor(bird_eye_roi, cv2.COLOR_BGR2GRAY)
-    blur = cv2.GaussianBlur(gray, (5, 5), 0)
-    edge = cv2.Canny(blur, 60, 70)
+    bird_eye_roi = bird_eye_image[bird_eye_roi_y_start:bird_eye_roi_y_end, bird_eye_roi_x_start:bird_eye_roi_x_end]
+
+    blur = cv2.GaussianBlur(bird_eye_roi, (5, 5), 0)
+    edge = cv2.Canny(blur, 70, 90)
 
     # HoughLinesP로 직선 검출
-    lines = cv2.HoughLinesP(edge, 1, math.pi / 180, threshold=30,
-                            minLineLength=30, maxLineGap=10)
-
-    # 수직선 개수 세기
+    # 20개 이상 누적되면 선분으로 판단 // 최소 길이 5픽셀 이상 // 간격이 10픽셀 이하일 경우 하나의 선분으로 간주
+    lines = cv2.HoughLinesP(edge, 1, math.pi / 180, threshold=20,
+                            minLineLength=10, maxLineGap=10)
     vertical_count = 0
+
+    color_frame = cv2.cvtColor(bird_eye_frame, cv2.COLOR_GRAY2BGR)
 
     if lines is not None:
         for line in lines:
             x1, y1, x2, y2 = line[0]
-            if x2 - x1 == 0:
-                slope = float('inf')
+            dx = x2 - x1
+            dy = y2 - y1
+
+            if dx == 0:
+                angle_deg = 90.0
             else:
-                slope = float(y2 - y1) / (x2 - x1)
-            if abs(slope) >= 2.0:  # 수직선 기준
+                slope = dy / dx
+                angle_deg = abs(math.degrees(math.atan(slope)))
+
+            if angle_deg >= 80.0:  # 각도로 수직선 판단 (75도 이상)
                 vertical_count += 1
 
-    # 기준 이상이면 횡단보도로 판단
-    return vertical_count >= 1  # 수직선 4개 이상이면 횡단보도
+                # 수직선 시각화
+                cv2.line(color_frame,
+                        (x1 + bird_eye_roi_x_start, y1 + bird_eye_roi_y_start),
+                        (x2 + bird_eye_roi_x_start, y2 + bird_eye_roi_y_start),
+                        (0, 0, 255), 2)
+
+
+    print(bird_eye_roi.shape)
+    cv2.imshow("ROI", bird_eye_roi)
+
+
+    # 수직선 개수 출력
+    text = "Vertical lines: {}".format(vertical_count)
+    cv2.putText(color_frame, text, (10, 30),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
+
+    # ROI 영역 시각화 박스 추가
+    cv2.rectangle(color_frame, (bird_eye_roi_x_start, bird_eye_roi_y_start),
+              (bird_eye_roi_x_end, bird_eye_roi_y_end), 255, 2)
+
+
+    cv2.imshow("Debug", color_frame)
+    # 수직선이 1개 이상이면 횡단보도
+    return vertical_count >= 1
+
 
 # show image and return lpos, rpos
 def process_image(frame):
@@ -427,21 +459,13 @@ def change_brid_eye(raw_image):
     x, y, w, h = cal_roi
     tf_image = tf_image[y:y + h, x:x + w]
 
-    # # gray scale
-    if(DEBUG == True):
-        gray_image = tf_image
-    else:
-        gray_image = cv2.cvtColor(tf_image, cv2.COLOR_BGR2GRAY)
+    gray_image = cv2.cvtColor(tf_image, cv2.COLOR_BGR2GRAY)
 
     # 2. 원본 프레임 (리사이즈 + 보정만 된)
     calibration_image = cv2.resize(gray_image, (Width, Height))
 
     # 4. BEV 변환
     bird_eye_image = cv2.warpPerspective(calibration_image, M_perspective, (Width, Height))
-
-    # ROI 영역 시각화 박스 추가
-    cv2.rectangle(bird_eye_image, (bird_eye_roi_x_start, bird_eye_roi_y_start),
-              (bird_eye_roi_x_end, bird_eye_roi_y_end), 255, 2)
 
     # 5. 시각화
     # if(DEBUG == True):
@@ -470,7 +494,7 @@ def start():
         if raw_image.size != (640 * 480 * 3):
             print("error")
             continue
-
+        
         change_brid_eye(raw_image)
         # # 수정 1. 여기서 기존 프레임의 lpos, rpos 차선 인식으로 수행해야 함!
         # lpos, rpos = process_image(calibration_image)
