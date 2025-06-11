@@ -47,10 +47,9 @@ M_perspective = cv2.getPerspectiveTransform(src_pts, dst_pts)
 # ==========================
 DEBUG = False
 
-raw_image = np.empty(shape=[0])
-calibration_image = np.empty(shape=[0])
-bird_eye_image = np.empty(shape=[0])
-
+raw_image = np.zeros((480, 640, 3), dtype=np.uint8)
+calibration_image = np.zeros((480, 640, 3), dtype=np.uint8)
+bird_eye_image = np.zeros((480, 640, 3), dtype=np.uint8)
 
 bridge = CvBridge()
 pub = None
@@ -69,9 +68,17 @@ prev_error = 0.0
 start_time = time.time()
 
 crosswalk_detected = False
+
+# 정지선 인식시 다시 False로 이동!
 stop_completed = False
 horizontal_line_detected = False
 
+# Bird eye ROI 설정
+bird_eye_roi_x_start = 200
+bird_eye_roi_x_end = 440
+bird_eye_roi_y_start = 20
+bird_eye_roi_y_end = 150
+bird_eye_roi = bird_eye_image[bird_eye_roi_x_start:bird_eye_roi_x_end, bird_eye_roi_y_start:bird_eye_roi_y_end]
 
 # ==========================
 # 카메라 보정 파라미터
@@ -172,26 +179,10 @@ def drive(angle, speed):
     pub.publish(msg)
 
 def img_callback(data):
-    global raw_image, calibration_image, bird_eye_image
+    global raw_image
+
     # 만약 global이 없으면, 그 변수는 함수 내에서 지역 변수로 새롭게 생성
     raw_image = bridge.imgmsg_to_cv2(data, "bgr8")
-
-    # 1. 카메라 왜곡 보정
-    tf_image = cv2.undistort(raw_image, mtx, dist, None, cal_mtx)
-    x, y, w, h = cal_roi
-    tf_image = tf_image[y:y + h, x:x + w]
-    undistorted = cv2.resize(tf_image, (Width, Height))
-    image = cv2.warpPerspective(undistorted, M_perspective, (Width, Height))
-
-    # 5. 시각화
-    if(DEBUG == True):
-        cv2.imshow("Raw View", raw_image)
-    cv2.imshow("Calibration View", calibration_image)
-    cv2.imshow("Bird Eye View", bird_eye_image)
-    cv2.waitKey(1)
-
-    # return value는 자동으로 버려짐
-    # return calibration_image, bird_eye_image
 
 # **주어진 직선들의 기울기(slope)**를 계산하고, 
 # 기울기의 절댓값이 특정 범위 (low ~ high)에 속하는 직선의 개수를 세는 함수입니다.
@@ -299,15 +290,10 @@ def is_crosswalk(bird_eye_frame):
     Bird-Eye View 프레임에서 ROI 영역 내 수직선 개수를 바탕으로
     횡단보도인지 여부를 판단
     """
-    # ROI 설정
-    roi_x_start = 200
-    roi_x_end = 500
-    roi_y_start = 100
-    roi_y_end = 140
-    roi = bird_eye_frame[roi_x_start:roi_x_end, roi_y_start:roi_y_end]
+    global bird_eye_roi_x_start, bird_eye_roi_x_end, bird_eye_roi_y_start, bird_eye_roi_y_end, bird_eye_roi
 
     # 전처리: 그레이스케일 → 블러 → 캐니 엣지
-    gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+    gray = cv2.cvtColor(bird_eye_roi, cv2.COLOR_BGR2GRAY)
     blur = cv2.GaussianBlur(gray, (5, 5), 0)
     edge = cv2.Canny(blur, 60, 70)
 
@@ -317,6 +303,7 @@ def is_crosswalk(bird_eye_frame):
 
     # 수직선 개수 세기
     vertical_count = 0
+
     if lines is not None:
         for line in lines:
             x1, y1, x2, y2 = line[0]
@@ -431,6 +418,42 @@ def classify_line_region_and_lane(frame):
 
     return result, lpos, rpos
 
+def change_brid_eye(raw_image):
+    global calibration_image, bird_eye_image
+    global bird_eye_roi_x_start, bird_eye_roi_x_end, bird_eye_roi_y_start, bird_eye_roi_y_end
+
+    # 1. 카메라 왜곡 보정
+    tf_image = cv2.undistort(raw_image, mtx, dist, None, cal_mtx)
+    x, y, w, h = cal_roi
+    tf_image = tf_image[y:y + h, x:x + w]
+
+    # # gray scale
+    if(DEBUG == True):
+        gray_image = tf_image
+    else:
+        gray_image = cv2.cvtColor(tf_image, cv2.COLOR_BGR2GRAY)
+
+    # 2. 원본 프레임 (리사이즈 + 보정만 된)
+    calibration_image = cv2.resize(gray_image, (Width, Height))
+
+    # 4. BEV 변환
+    bird_eye_image = cv2.warpPerspective(calibration_image, M_perspective, (Width, Height))
+
+    # ROI 영역 시각화 박스 추가
+    cv2.rectangle(bird_eye_image, (bird_eye_roi_x_start, bird_eye_roi_y_start),
+              (bird_eye_roi_x_end, bird_eye_roi_y_end), 255, 2)
+
+    # 5. 시각화
+    # if(DEBUG == True):
+    #     cv2.imshow("Raw View", raw_image)
+    # cv2.imshow("Calibration View", calibration_image)
+    cv2.imshow("Bird Eye View", bird_eye_image)
+    cv2.waitKey(1)
+
+    # return value는 자동으로 버려짐
+    # return calibration_image, bird_eye_image
+
+
 def start():
     global pub, info_pub, raw_image, calibration_image, bird_eye_image, crosswalk_detected, stop_completed
     rospy.init_node('auto_drive')
@@ -443,25 +466,28 @@ def start():
     rospy.sleep(2)
 
     while not rospy.is_shutdown():
-        if calibration_image.size != (640 * 480 * 3):
+
+        if raw_image.size != (640 * 480 * 3):
+            print("error")
             continue
 
-        # 수정 1. 여기서 기존 프레임의 lpos, rpos 차선 인식으로 수행해야 함!
-        lpos, rpos = process_image(calibration_image)
-        center = int((lpos + rpos) / 2.0)
+        change_brid_eye(raw_image)
+        # # 수정 1. 여기서 기존 프레임의 lpos, rpos 차선 인식으로 수행해야 함!
+        # lpos, rpos = process_image(calibration_image)
+        # center = int((lpos + rpos) / 2.0)
 
         # [횡단보도] 횡단보도 체크 함수!!
         if(is_crosswalk(bird_eye_image) and not stop_completed):
             drive(0, 0)
             time.sleep(5)
             stop_completed = True
-        # elif result == "stop_line":
-        #     print("stop line is detected")
-        # elif result == "start_line":
-        #     print("start line is detected")
+        # # elif result == "stop_line":
+        # #     print("stop line is detected")
+        # # elif result == "start_line":
+        # #     print("start line is detected")
 
-        angle = PID(center, 0.45, 0.0007, 0.25)
-        drive(angle, 5)
+        # angle = PID(center, 0.45, 0.0007, 0.25)
+        # drive(angle, 5)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
