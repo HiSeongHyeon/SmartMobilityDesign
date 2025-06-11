@@ -168,7 +168,6 @@ def img_callback(data):
     x, y, w, h = cal_roi
     tf_image = tf_image[y:y + h, x:x + w]
     undistorted = cv2.resize(tf_image, (Width, Height))
-    image = cv2.warpPerspective(undistorted, M_perspective, (Width, Height))
 
     # BIRD_EYE 적용 여부
     if BIRD_EYE:
