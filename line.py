@@ -48,7 +48,7 @@ class Line_debug:
         return count
     
     @staticmethod
-    def divide_left_right(lines):
+    def divide_left_right2(lines):
         # 하이퍼 파라미터 
         # |slope| < 0.1 혹은 |slope| > 20인 경우는 건너뜁니다.
         low_thresh, high_thresh = 0.1, 20 
@@ -67,6 +67,47 @@ class Line_debug:
         return left_lines, right_lines
 
     @staticmethod
+    def divide_left_right(lines):
+        # 하이퍼 파라미터 
+        # |slope| < 0.1 혹은 |slope| > 20인 경우는 건너뜁니다.
+
+        low_slope_threshold = 0.001
+        high_slope_threshold = 10
+
+        # calculate slope & filtering with threshold
+        slopes = []
+        new_lines = []
+
+        for line in lines:
+            x1, y1, x2, y2 = line[0]
+
+            if x2 - x1 == 0:
+                slope = 0
+            else:
+                slope = float(y2-y1) / float(x2-x1)
+            
+            if abs(slope) > low_slope_threshold and abs(slope) < high_slope_threshold:
+                slopes.append(slope)
+                new_lines.append(line[0])
+
+        # divide lines left to right
+        left_lines = []
+        right_lines = []
+
+        for j in range(len(slopes)):
+            Line = new_lines[j]
+            slope = slopes[j]
+
+            x1, y1, x2, y2 = Line
+            
+            if (slope < 0) and (x2 < Width/2 - 90):
+                left_lines.append([Line.tolist()])
+            elif (slope > 0) and (x1 > Width/2 + 90):
+                right_lines.append([Line.tolist()])
+
+        return left_lines, right_lines
+
+    @staticmethod
     # get average m, b of lines
     def get_line_params(lines):
         # sum of x, y, m
@@ -76,6 +117,7 @@ class Line_debug:
 
         size = len(lines)
         if size == 0:
+            print("no lines")
             return 0, 0
 
         for line in lines:
@@ -95,7 +137,6 @@ class Line_debug:
     # get lpos, rpos
     def get_line_pos(self, img, lines, left=False, right=False):
         m, b = self.get_line_params(lines)
-
         if m == 0 and b == 0:
             if left:
                 pos = 0
@@ -120,11 +161,12 @@ class Line_debug:
         if all_lines is None:
             return 0, 640
         left_lines, right_lines = self.divide_left_right(all_lines)
-
+     
         # get center of lines
         frame, lpos = self.get_line_pos(frame, left_lines, left=True)
         frame, rpos = self.get_line_pos(frame, right_lines, right=True)
-        print
+
+
         # draw lines
         frame = self.draw_lines(frame, left_lines)
         frame = self.draw_lines(frame, right_lines)

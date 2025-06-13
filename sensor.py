@@ -43,15 +43,26 @@ class Camera:
         undistorted = undistorted[y:y + h, x:x + w]
         undistorted = cv2.resize(undistorted, (Width, Height))
         gray = cv2.cvtColor(undistorted, cv2.COLOR_BGR2GRAY)
-        roi = gray[self.Offset : self.Offset+ self.Gap, 0 : Width]
 
-        self.calibration_image = gray
+        # blur
+        kernel_size = 5
+        blur_gray = cv2.GaussianBlur(gray,(kernel_size, kernel_size), 0)
+
+        # canny edge
+        low_threshold = 60
+        high_threshold = 70
+        edge_img = cv2.Canny(np.uint8(blur_gray), low_threshold, high_threshold)
+
+
+        roi = edge_img[self.Offset : self.Offset+ self.Gap, 0 : Width]
+
+        self.calibration_image = edge_img
         all_lines = cv2.HoughLinesP(roi,1,math.pi/180,30,30,10)
         if Debug == True:
             lpos, rpos = self.Line.process_calibration(self.calibration_image, all_lines)
 
         M_perspective = cv2.getPerspectiveTransform(src_pts, dst_pts)
-        bird_eye_image = cv2.warpPerspective(gray, M_perspective, (Width, Height))
+        bird_eye_image = cv2.warpPerspective(edge_img, M_perspective, (Width, Height))
         self.bird_eye_image = bird_eye_image
         if Debug == True:
             is_crosswalk, is_diagonal = self.Line.process_birdeye(bird_eye_image)
@@ -138,6 +149,10 @@ class Lidar:
                     count1 += 1
                 if 0.01 < self.lidar_points[360] <= threshold:
                     count2 += 1
+        print"count1",count1
+        print"count2",count2
+        print"left lidar", self.lidar_points[0]
+        print"right lidar", self.lidar_points[360]
         return (count1 > count_limit) and (count2 > count_limit)
 
     ################################################################################

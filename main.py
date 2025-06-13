@@ -28,7 +28,6 @@ if __name__ == '__main__':
     while not rospy.is_shutdown():
         is_obs = lidar.is_obstacle_ahead()
         is_tunnel = lidar.is_tunnel()
-        
         if is_tunnel:
             print("this is tunnel")
             left = lidar.lidar_points[0]

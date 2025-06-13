@@ -14,6 +14,9 @@ class XycarControl:
         self.i_error = 0.0
         self.prev_error = 0.0
         self.start_time = time.time()
+        self.i_error_tunnel = 0.0
+        self.prev_error_tunnel = 0.0
+        self.start_time_tunnel = time.time()
         self.stop_completed = False
         self.crosswalk_detected = False
         self.lidar_mask = None
@@ -35,9 +38,9 @@ class XycarControl:
 
         error = 320 - center
         derror = error - self.prev_error
-        p_error = self.kp * error
-        self.i_error += self.ki * error * dt
-        d_error = self.kd * derror / dt if dt > 0 else 0
+        p_error = kp * error
+        self.i_error += ki * error * dt
+        d_error = kd * derror / dt if dt > 0 else 0
 
         output = p_error + self.i_error + d_error
         self.prev_error = error
@@ -51,7 +54,6 @@ class XycarControl:
 
     # PID Control: avoiding obstacle
     def obstacle_PID(self, input, theta, kp=0.41, ki=0.001, kd=0.05):
-        global obstacle_prev_error, obstacle_i_error
         # self.i_error = 0.0 두 전역 변수 대신에 지역변수 그냥쓰면 안되나
         # self.prev_error = 0.0
         # obstacle start time
@@ -60,12 +62,12 @@ class XycarControl:
         self.start_time = end_time
 
         error = (0.5 - input * math.sin(math.radians(theta))) * 150
-        derror = error - obstacle_prev_error
+        derror = error - self.prev_error
         p_error = kp * error
-        obstacle_i_error = obstacle_i_error + ki * error * dt
+        self.i_error = self.i_error + ki * error * dt
         d_error = kd * derror / dt
-        output = p_error + obstacle_i_error + d_error
-        obstacle_prev_error = error
+        output = p_error + self.i_error + d_error
+        self.prev_error = error
 
         if output > 50:
             output = 50
@@ -76,18 +78,17 @@ class XycarControl:
 
     # PID Control: driving tunnel
     def tunnel_PID(self, input_left, input_right, kp=0.4, ki=0.0005, kd=0.15):
-        global tunnel_prev_error, tunnel_i_error
         end_time = time.time()
-        dt = end_time - self.start_time
-        self.start_time = end_time
+        dt = end_time - self.start_time_tunnel
+        self.start_time_tunnel = end_time
 
         error = (input_right - input_left) * 250
-        derror = error - tunnel_prev_error
+        derror = error - self.prev_error_tunnel
         p_error = kp * error
-        tunnel_i_error = tunnel_i_error + ki * error * dt
+        self.i_error_tunnel = self.i_error_tunnel + ki * error * dt
         d_error = kd * derror / dt
-        output = p_error + tunnel_i_error + d_error
-        tunnel_prev_error = error
+        output = p_error + self.i_error_tunnel + d_error
+        self.prev_error_tunnel = error
 
         if output > 50:
             output = 50
