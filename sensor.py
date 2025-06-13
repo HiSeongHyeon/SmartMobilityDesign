@@ -188,15 +188,6 @@ class Lidar:
         print("right angle = ", angle)
         drive(angle, 5)
 
-    # Performing: tunnel
-    def in_tunnel():
-        global lidar_points
-        left = lidar_points[0]
-        right = lidar_points[360]
-        angle = tunnel_PID(left, right)
-        speed = 5
-        drive(angle, speed)
-
 
 
 
