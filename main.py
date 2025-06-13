@@ -38,15 +38,19 @@ if __name__ == '__main__':
         elif obs != 0:
             if obs == 1:
                 print("=== obstacle is right side ===")
-                distance, theta = right_obstacle_driving()
-                angle = -obstacle_PID(distance, theta)
+                distance, theta = lidar.right_obstacle_driving()
+                angle = obstacle_PID(distance, theta)
                 print("avg distance and theta = ", distance, theta)
-                print("right angle = ", angle)
+                print("left angle = ", angle)
                 drive(angle, 5)
 
             if obs == 2:
                 print("=== obstacle is left side ===")
-                left_obstacle_driving()
+                distance, theta = lidar.left_obstacle_driving()
+                angle = -obstacle_PID(distance, theta)
+                print("avg distance and theta = ", distance, theta)
+                print("right angle = ", angle)
+                drive(angle, 5)
 
         # else:
         lpos, rpos, is_crosswalk = camera.process_calibration_and_birdeye()
