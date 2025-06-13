@@ -109,7 +109,7 @@ class Lidar:
     ################################################################################
 
     # Recognition: obstacle
-    def is_obstacle_ahead(threshold=0.4, check_range=200, count_limit=5):
+    def is_obstacle_ahead(self, threshold=0.4, check_range=200, count_limit=5):
         countright = 0
         countleft = 0
 
@@ -127,7 +127,7 @@ class Lidar:
             return 0
 
     # Recognition: tunnel
-    def is_tunnel(threshold=0.4, count_iter=10, count_limit=5):
+    def is_tunnel(self, threshold=0.4, count_iter=10, count_limit=5):
         count1 = 0
         count2 = 0
         for deg in range(count_iter + 1):
@@ -143,7 +143,7 @@ class Lidar:
     ################################################################################
 
     # Performing: when obastacle is right side
-    def right_obstacle_driving():
+    def right_obstacle_driving(self):
         rtn = list()
         distance = 0
         count = 0
@@ -166,7 +166,7 @@ class Lidar:
         return distance/5, i/2
 
     # Performing: when obastacle is left side
-    def left_obstacle_driving():
+    def left_obstacle_driving(self):
         rtn = list()
         distance = 0
         count = 0

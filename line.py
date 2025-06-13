@@ -124,7 +124,7 @@ class Line_debug:
         # get center of lines
         frame, lpos = self.get_line_pos(frame, left_lines, left=True)
         frame, rpos = self.get_line_pos(frame, right_lines, right=True)
-
+        print
         # draw lines
         frame = self.draw_lines(frame, left_lines)
         frame = self.draw_lines(frame, right_lines)
@@ -206,7 +206,7 @@ class Line_debug:
 
         # cv2.imshow("Birdeye", color_frame)
         # 수직선이 1개 이상이면 횡단보도
-        return vertical_count >= 1, diagonal_count >= 10
+        return vertical_count >= 10, diagonal_count >= 10
 
     @staticmethod
     def plot_lane_detection(frame, result, lpos, rpos, left_lines, right_lines, lidar_mask=None, show_center=True, window_name="Lane + LiDAR Visualization"):

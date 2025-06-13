@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import rospy
-import cv2
+import cv2, time
 
 
 from control import XycarControl
@@ -37,27 +37,27 @@ if __name__ == '__main__':
             control.drive(angle, 5)
 
         elif is_obs:
-            if obs == 1:
+            if is_obs == 1:
                 print("=== obstacle is right side ===")
                 distance, theta = lidar.right_obstacle_driving()
                 if theta > 90:
-                    angle = -obstacle_PID(distance, theta)
+                    angle = -control.obstacle_PID(distance, theta)
                 else:
-                    angle = obstacle_PID(distance, theta)
+                    angle = control.obstacle_PID(distance, theta)
                 print("avg distance and theta = ", distance, theta)
                 print("left angle = ", angle)
-                drive(angle, 5)
+                control.drive(angle, 5)
 
-            if obs == 2:
+            if is_obs == 2:
                 print("=== obstacle is left side ===")
                 distance, theta = lidar.left_obstacle_driving()
                 if theta > 90:
-                    angle = obstacle_PID(distance, theta)
+                    angle = control.obstacle_PID(distance, theta)
                 else:
-                    angle = -obstacle_PID(distance, theta)
+                    angle = -control.obstacle_PID(distance, theta)
                 print("avg distance and theta = ", distance, theta)
                 print("right angle = ", angle)
-                drive(angle, 5)
+                control.drive(angle, 5)
 
         # else:
         lpos, rpos, is_crosswalk, is_stopline = camera.process_calibration_and_birdeye()
