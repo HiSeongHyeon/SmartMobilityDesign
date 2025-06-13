@@ -99,14 +99,14 @@ class Lidar:
     ################################################################################
 
     # Recognition: obstacle
-    def is_obstacle_ahead(threshold=0.5, check_range=60, count_limit=6):
+    def is_obstacle_ahead(threshold=0.4, check_range=200, count_limit=5):
         countright = 0
         countleft = 0
 
         for deg in range(check_range+1):
-            if 0.1 < self.lidar_points[deg+180] <= threshold:
+            if 0.01 < self.lidar_points[deg+180] <= threshold:
                 countright += 1
-            if 0.1 < self.lidar_points[180-deg] <= threshold:
+            if 0.01 < self.lidar_points[180-deg] <= threshold:
                 countleft += 1
 
         if countright > count_limit and countleft < count_limit:
@@ -117,10 +117,10 @@ class Lidar:
             return 0
 
     # Recognition: tunnel
-    def is_tunnel(threshold=0.5, check_range=10, count_limit=5):
+    def is_tunnel(threshold=0.4, count_iter=10, count_limit=5):
         count1 = 0
         count2 = 0
-        for deg in range(check_range + 1):
+        for deg in range(count_iter + 1):
             if np.isinf(self.lidar_points[0]) or np.isinf(self.lidar_points[360]):
                 continue
             else:
@@ -137,9 +137,9 @@ class Lidar:
         rtn = list()
         distance = 0
         count = 0
-        for i in range(300):
+        for i in range(200):
             if not np.isinf(self.lidar_points[i+180]):
-                if 0.1 < self.lidar_points[i+180] < 0.4:
+                if 0.01 < self.lidar_points[i+180] < 0.4:
                     rtn.append(self.lidar_points[i+180])
                 else:
                     rtn.append(0)
@@ -160,9 +160,9 @@ class Lidar:
         rtn = list()
         distance = 0
         count = 0
-        for i in range(300):
+        for i in range(200):
             if not np.isinf(self.lidar_points[180-i]):
-                if 0.1 < self.lidar_points[180-i] <0.4:
+                if 0.01 < self.lidar_points[180-i] < 0.4:
                     rtn.append(self.lidar_points[180-i])
                 else:
                     rtn.append(0)
