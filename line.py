@@ -113,45 +113,6 @@ class Line_debug:
             cv2.line(img, (int(x1), Height), (int(x2), (Height/2)), (255, 0,0), 3)
 
         return img, int(pos)
-
-    # def classify_line_region_and_lane(frame):
-    #     print " classify 1"
-    #     blur = cv2.GaussianBlur(frame, (5, 5), 0)
-    #     edge = cv2.Canny(blur, 60, 70)
-    #     roi = edge[Offset : Offset+Gap, 0 : Width]
-    #     lines = cv2.HoughLinesP(roi, 1, math.pi / 180, 30, minLineLength=30, maxLineGap=10)
-
-    #     result = "none"
-    #     lpos, rpos = 0, Width
-    #     left_lines = None
-    #     right_lines = None
-    #     print " classify 2"
-    #     if lines is not None:
-    #         # lines_reshaped = [[x1 + Width_Offset, y1 + Offset, x2 + Width_Offset, y2 + Offset]
-    #         #                 for [[x1, y1, x2, y2]] in lines]
-    #         # horizontal_count = count_lines_by_slope(lines, 0.0, 0.1)
-    #         # diagonal_count = count_lines_by_slope(lines, 0.3, 1.0)
-    #         # vertical_count = count_lines_by_slope(lines, 2.0, float('inf'))
-    #         # print " classify 3"
-    #         # if horizontal_count >= 1:
-    #         #     if vertical_count >= 6:
-    #         #         result = "crosswalk"
-    #         #     elif diagonal_count >= 3:
-    #         #         result = "stop_line"
-    #         #     else:
-    #         #         result = "start_line"
-    #         print " classify 4"
-    #         left_lines, right_lines = divide_left_right(lines)
-    #         print " classify 5"
-    #         frame, lpos = get_line_pos(frame, left_lines, left=True)
-    #         frame, rpos = get_line_pos(frame, right_lines, right=True)
-    #         frame = cv2.line(frame, (230, 235), (410, 235), (255,255,255), 2)
-    #         print " classify 6"
-    #             # show image
-    #         cv2.imshow('calibration', frame)
-    #     print " classify 7"
-    #     return result, lpos, rpos, left_lines, right_lines
-
     
     # show image and return lpos, rpos
     def process_calibration(self, frame, all_lines):
