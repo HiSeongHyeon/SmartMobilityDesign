@@ -57,10 +57,10 @@ class Line_debug:
             if abs(slope) < low_thresh or abs(slope) > high_thresh:
                 continue
             # 기울기가 음수이고, x2가 이미지 좌측에 있으면 왼쪽 차선 후보로 판단
-            if slope < 0 and x2 < Width // 2 - 90:
+            if slope < 0 and x2 < Width / 2 + 20:
                 left_lines.append([line[0]])
             # 기울기가 양수이고, x1이 이미지 우측에 있으면 오른쪽 차선 후보로 판단
-            elif slope > 0 and x1 > Width // 2 + 90:
+            elif slope > 0 and x1 > Width / 2 - 20:
                 right_lines.append([line[0]])
         return left_lines, right_lines
 
