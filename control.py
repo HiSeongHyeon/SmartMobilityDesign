@@ -36,7 +36,7 @@ class XycarControl:
         dt = end_time - self.start_time
         self.start_time = end_time
 
-        error = 340 - center
+        error = 340 + 30 - center
         derror = error - self.prev_error
         p_error = kp * error
         self.i_error += ki * error * dt
@@ -79,16 +79,16 @@ class XycarControl:
     # PID Control: driving tunnel
     def tunnel_PID(self, input_left, input_right, kp=0.4, ki=0.0005, kd=0.15):
         end_time = time.time()
-        dt = end_time - self.start_time_tunnel
-        self.start_time_tunnel = end_time
+        dt = end_time - self.start_time
+        self.start_time = end_time
 
         error = (input_right - input_left) * 250
-        derror = error - self.prev_error_tunnel
+        derror = error - self.prev_error
         p_error = kp * error
         self.i_error_tunnel = self.i_error_tunnel + ki * error * dt
         d_error = kd * derror / dt
         output = p_error + self.i_error_tunnel + d_error
-        self.prev_error_tunnel = error
+        self.prev_error = error
 
         if output > 50:
             output = 50
@@ -105,31 +105,3 @@ class XycarControl:
         msg.angle = angle
         msg.speed = speed
         self.pub.publish(msg)
-
-    # def image_callback(self, msg):
-    #     try:
-    #         print("image subsub")
-    #         # final_image = self.bridge.imgmsg_to_cv2(msg, "16UC2")
-    #         # gray_channel = final_image[:,:,0].astype(np.uint8)
-    #         # lidar_channel = final_image[:,:,1].astype(np.uint8)
-    #         # gray_channel = self.bridge.imgmsg_to_cv2(msg,'mono8')
-    #         # result, lpos, rpos, left_lines, right_lines = classify_line_region_and_lane(gray_channel)
-
-    #         # plot_lane_detection(gray_channel, result, lpos, rpos, left_lines, right_lines, lidar_channel,False, window_name="Fusion Visualization")
-    #         # center = int((lpos + rpos) / 2.0)
-
-    #         # if result == "crosswalk" and not self.stop_completed:
-    #         #     print("crosswalk")
-    #         #     self.drive(0, 0)
-    #         #     time.sleep(5)
-    #         #     self.stop_completed = True
-    #         #     self.crosswalk_detected = False
-    #         # elif result == "stop_line":
-    #         #     print("stop line is detected")
-    #         # elif result == "start_line":
-    #         #     print("start line is detected")
-
-    #         # angle = self.PID(center, 0.45, 0.0007, 0.25)
-    #         # self.drive(angle, 5)
-    #     except Exception as e:
-    #         rospy.logerr("Image processing error: %s", str(e))

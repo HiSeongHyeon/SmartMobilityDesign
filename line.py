@@ -5,7 +5,6 @@ import numpy as np
 import math, random
 
 from config import Width, Height, Offset, Gap, Width_Offset
-from config import bird_eye_roi_x_start, bird_eye_roi_x_end, bird_eye_roi_y_start, bird_eye_roi_y_end
 
 class Line_debug:
     # draw lines
@@ -117,7 +116,6 @@ class Line_debug:
 
         size = len(lines)
         if size == 0:
-            print("no lines")
             return 0, 0
 
         for line in lines:
@@ -137,7 +135,7 @@ class Line_debug:
     # get lpos, rpos
     def get_line_pos(self, img, lines, left=False, right=False):
         m, b = self.get_line_params(lines)
-        if m == 0 and b == 0:
+        if abs(m) <0.05 and b == 0:
             if left:
                 pos = 0
             if right:
@@ -184,24 +182,30 @@ class Line_debug:
 
 
         # 횡단보도인지?
-    @staticmethod
-    def process_birdeye(bird_eye_frame):
+    def process_birdeye(self, bird_eye_frame, crosswalk_completed):
         """
         Bird-Eye View 프레임에서 ROI 영역 내 수직선 개수를 바탕으로
         횡단보도인지 여부를 판단 (기울기를 각도로 변환하여 기준 적용)
         """
-        bird_eye_roi = bird_eye_frame[bird_eye_roi_y_start:bird_eye_roi_y_end, bird_eye_roi_x_start:bird_eye_roi_x_end]
+        from config import bird_eye_roi_x_start, bird_eye_roi_x_end, bird_eye_roi_y_start, bird_eye_roi_y_end
 
+        if(crosswalk_completed):
+            tmp = bird_eye_roi_y_end
+            bird_eye_roi_y_end = 2*bird_eye_roi_y_end-bird_eye_roi_y_start
+            bird_eye_roi_y_start = tmp
+        bird_eye_roi = bird_eye_frame[bird_eye_roi_y_start:bird_eye_roi_y_end, bird_eye_roi_x_start:bird_eye_roi_x_end]
         blur = cv2.GaussianBlur(bird_eye_roi, (5, 5), 0)
         edge = cv2.Canny(blur, 70, 90)
 
         # HoughLinesP로 직선 검출
         # 20개 이상 누적되면 선분으로 판단 // 최소 길이 5픽셀 이상 // 간격이 10픽셀 이하일 경우 하나의 선분으로 간주
-        lines = cv2.HoughLinesP(edge, 1, math.pi / 180, threshold=20,
+        lines = cv2.HoughLinesP(edge, 1, math.pi / 180, threshold=40,
                                 minLineLength=10, maxLineGap=10)
         vertical_count = 0
         # 수직선 개수 세기
         diagonal_count = 0
+        # 평행선 개수 세기
+        horizental_count = 0
         color_frame = cv2.cvtColor(bird_eye_frame, cv2.COLOR_GRAY2BGR)
 
         if lines is not None:
@@ -214,17 +218,25 @@ class Line_debug:
                     angle_deg = 90.0
                 else:
                     slope = dy / dx
-                    angle_deg = abs(math.degrees(math.atan(slope)))
+                    angle_deg = math.degrees(math.atan(slope))
 
-                if angle_deg <= 60.0 and angle_deg >= 30.0:  # 대각선 기준
+                if angle_deg <= 10.0 and angle_deg >= -10:  # 대각선 기준
+                    horizental_count += 1
+                    # 대각선 시각화
+                    cv2.line(color_frame,
+                        (x1 + bird_eye_roi_x_start, y1 + bird_eye_roi_y_start),
+                        (x2 + bird_eye_roi_x_start, y2 + bird_eye_roi_y_start),
+                        (0, 0, 255), 2)               
+                if angle_deg <= 60.0 and angle_deg >= 0:  # 대각선 기준
                     diagonal_count += 1
                     # 대각선 시각화
                     cv2.line(color_frame,
-                            (x1 + bird_eye_roi_x_start, y1 + bird_eye_roi_y_start),
-                            (x2 + bird_eye_roi_x_start, y2 + bird_eye_roi_y_start),
-                            (0, 0, 255), 2)
+                        (x1 + bird_eye_roi_x_start, y1 + bird_eye_roi_y_start),
+                        (x2 + bird_eye_roi_x_start, y2 + bird_eye_roi_y_start),
+                        (0, 0, 255), 2)               
+
                 
-                elif angle_deg >= 80.0:  # 각도로 수직선 판단 (75도 이상)
+                elif abs(angle_deg) >= 80.0:  # 각도로 수직선 판단 (75도 이상)
                     vertical_count += 1
 
                     # 수직선 시각화
@@ -248,7 +260,7 @@ class Line_debug:
 
         cv2.imshow("Birdeye", color_frame)
         # 수직선이 1개 이상이면 횡단보도
-        return vertical_count >= 10, diagonal_count >= 10
+        return vertical_count >= 10, diagonal_count >= 6, horizental_count >=4
 
     @staticmethod
     def plot_lane_detection(frame, result, lpos, rpos, left_lines, right_lines, lidar_mask=None, show_center=True, window_name="Lane + LiDAR Visualization"):

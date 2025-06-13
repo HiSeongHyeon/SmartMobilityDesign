@@ -6,7 +6,7 @@ import cv2, time
 
 
 from control import XycarControl
-from config import mtx, dist, Width, Height, crosswalk_completed
+from config import crosswalk_completed
 from sensor import Camera, Lidar
 import numpy as np
 
@@ -19,6 +19,7 @@ if __name__ == '__main__':
     lidar = Lidar()
     control = XycarControl()
     control.init_publisher()
+
 
     # 첫 이미지 수신 대기
     while not rospy.is_shutdown() and (np.sum(camera.raw_image) == 0 or lidar.lidar_points is None):
@@ -53,8 +54,8 @@ if __name__ == '__main__':
                     angle = -control.obstacle_PID(distance, theta)
                 else:
                     angle = control.obstacle_PID(distance, theta)
-                print("avg distance and theta = ", distance, theta)
-                print("left angle = ", angle)
+                # print("avg distance and theta = ", distance, theta)
+                # print("left angle = ", angle)
                 control.drive(angle, 5)
 
             if is_obs == 2:
@@ -64,20 +65,22 @@ if __name__ == '__main__':
                     angle = control.obstacle_PID(distance, theta)
                 else:
                     angle = -control.obstacle_PID(distance, theta)
-                print("avg distance and theta = ", distance, theta)
-                print("right angle = ", angle)
+                # print("avg distance and theta = ", distance, theta)
+                # print("right angle = ", angle)
                 control.drive(angle, 5)
             continue
             
         # 일반 직선 곡선 구간, 횡단보도 구간, 정지선 구간 판단.
         lpos, rpos, is_crosswalk, is_stopline = camera.process_calibration_and_birdeye()
-
+  
         
         if(is_crosswalk and not crosswalk_completed):
             print"========== this is crosswalk ========="
             control.drive(0, 0)
             time.sleep(5)
             crosswalk_completed = True
+            camera.crosswalk_completed = crosswalk_completed
+
         
         elif(crosswalk_completed and is_stopline):
             print"========= this is stopline ========="
@@ -87,8 +90,8 @@ if __name__ == '__main__':
             break
 
         else:
+            print"========= this is general ========="
             center = (lpos + rpos) / 2
-            print"center",center
             angle = control.PID(center)
             control.drive(angle, 5)
 
