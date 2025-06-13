@@ -153,10 +153,7 @@ class Lidar:
                 count += 1
                 if count == 5:
                     break
-        angle = obstacle_PID(distance / 5, i/2)
-        print("avg distance and theta = ", distance / 5, i/2)
-        print("left angle = ", angle)
-        drive(angle, 5)
+        return distance/5, i/2
 
     # Performing: when obastacle is left side
     def left_obstacle_driving():
@@ -179,7 +176,7 @@ class Lidar:
                 count += 1
                 if count == 5:  
                     break
-        return distance, i/2
+        return distance/5, i/2
         
 
 
