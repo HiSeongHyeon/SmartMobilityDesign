@@ -28,4 +28,4 @@ T_lidar2cam = np.array([[0], [-5], [10]])
 
 
 Debug = True
-stop_completed = False
+crosswalk_completed = False

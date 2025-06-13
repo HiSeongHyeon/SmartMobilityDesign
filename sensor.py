@@ -62,7 +62,7 @@ class Camera:
             lpos, rpos = self.Line.process_calibration(self.calibration_image, all_lines)
 
         M_perspective = cv2.getPerspectiveTransform(src_pts, dst_pts)
-        bird_eye_image = cv2.warpPerspective(edge_img, M_perspective, (Width, Height))
+        bird_eye_image = cv2.warpPerspective(gray, M_perspective, (Width, Height))
         self.bird_eye_image = bird_eye_image
         if Debug == True:
             is_crosswalk, is_diagonal = self.Line.process_birdeye(bird_eye_image)
@@ -138,16 +138,16 @@ class Lidar:
             return 0
 
     # Recognition: tunnel
-    def is_tunnel(self, threshold=0.4, count_iter=10, count_limit=5):
+    def is_tunnel(self, threshold=0.4, check_range=40, count_limit=20):
         count1 = 0
         count2 = 0
-        for deg in range(count_iter + 1):
+        for deg in range(check_range + 1):
             if np.isinf(self.lidar_points[0]) or np.isinf(self.lidar_points[360]):
                 continue
             else:
-                if 0.01 < self.lidar_points[0] <= threshold:
+                if 0.01 < self.lidar_points[0+check_range] <= threshold:
                     count1 += 1
-                if 0.01 < self.lidar_points[360] <= threshold:
+                if 0.01 < self.lidar_points[360-check_range] <= threshold:
                     count2 += 1
         print"count1",count1
         print"count2",count2
@@ -203,8 +203,17 @@ class Lidar:
                     break
         return distance/5, i/2
         
-
-
+    def tunnel_driving(self):
+        left = list()
+        right = list()
+        for i in range(40):
+            if not np.isinf(self.lidar_points[i]):
+                left.append(self.lidar_points[i])
+            if not np.isinf(self.lidar_points[360-i]):
+                right.append(self.lidar_points[360-i])
+        left_distance = sum(left)/len(left)
+        right_distance = sum(right)/len(right)
+        return left_distance, right_distance
 
 
     def lidar_to_mask(self, scan, cal_mtx):
