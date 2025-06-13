@@ -26,7 +26,11 @@ class Camera:
         self.bird_eye_image = np.zeros((480, 640, 1), dtype=np.uint8)
     
         # stopline_frame_buff: 최근 10프레임의 stopline 감지 결과 저장
-        self.stopline_frame_buff = deque([0]*7, maxlen=7)
+        self.stopline_frame_buff = deque([0]*20, maxlen=20)
+        self.horizentalline_frame_buff = deque([0]*25, maxlen=40)
+
+        self.crosswalk_completed = False
+
         rospy.Subscriber("/usb_cam/image_raw", Image, self.img_callback)
         print("image subscriber start") 
         if Debug == True:
@@ -65,13 +69,20 @@ class Camera:
         bird_eye_image = cv2.warpPerspective(gray, M_perspective, (Width, Height))
         self.bird_eye_image = bird_eye_image
         if Debug == True:
-            is_crosswalk, is_diagonal = self.Line.process_birdeye(bird_eye_image)
+            is_crosswalk, is_diagonal, is_horizental = self.Line.process_birdeye(bird_eye_image, crosswalk_completed=self.crosswalk_completed)
+        if is_horizental:
+            self.horizentalline_frame_buff.append(1)
+            print("horizentalline_frame_buff",sum(self.horizentalline_frame_buff))  
+        else:
+            self.horizentalline_frame_buff.append(0)
         if is_diagonal:
             self.stopline_frame_buff.append(1)
+            print("stopline buff",sum(self.stopline_frame_buff))
         else:
             self.stopline_frame_buff.append(0)
-        if sum(self.stopline_frame_buff) >= 3:
+        if sum(self.stopline_frame_buff) >= 6 and sum(self.horizentalline_frame_buff) >= 5:
             is_stopline = True
+            
         else: is_stopline = False
         return lpos, rpos, is_crosswalk, is_stopline
 
@@ -122,10 +133,6 @@ class Lidar:
                     count1 += 1
                 if 0.01 < self.lidar_points[360-check_range] <= threshold:
                     count2 += 1
-        print"count1",count1
-        print"count2",count2
-        print"left lidar", self.lidar_points[0]
-        print"right lidar", self.lidar_points[360]
         return (count1 > count_limit) and (count2 > count_limit)
 
 
