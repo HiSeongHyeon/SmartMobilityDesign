@@ -30,8 +30,7 @@ if __name__ == '__main__':
         is_tunnel = lidar.is_tunnel()
         if is_tunnel:
             print("this is tunnel")
-            left = lidar.lidar_points[0]
-            right = lidar.lidar_points[360]
+            left, right = lidar.tunnel_driving()
             angle = control.tunnel_PID(left, right)
             control.drive(angle, 5)
 
@@ -58,23 +57,24 @@ if __name__ == '__main__':
                 print("right angle = ", angle)
                 control.drive(angle, 5)
 
-        # else:
-        lpos, rpos, is_crosswalk, is_stopline = camera.process_calibration_and_birdeye()
-        print"is crosswalk",is_crosswalk
-        print"is stopline",is_stopline
+        else:
+            lpos, rpos, is_crosswalk, is_stopline = camera.process_calibration_and_birdeye()
+            print"is crosswalk",is_crosswalk
+            print"is stopline",is_stopline
 
 
-        center = (lpos + rpos) / 2
-        print"center",center
-        angle = control.PID(center)
-        control.drive(angle, 5)
+            center = (lpos + rpos) / 2
+            print"center",center
+            angle = control.PID(center)
+            control.drive(angle, 5)
 
-        if(is_crosswalk and not stop_completed):
-            control.drive(0, 0)
-            time.sleep(5)
-            stop_completed = True
+            if(is_crosswalk and not stop_completed):
+                control.drive(0, 0)
+                time.sleep(5)
+                stop_completed = True
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+    rospy.spin()
     print("---------------------------------------------------------")
     print("Program Done")
