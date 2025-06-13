@@ -9,14 +9,15 @@ from config import bird_eye_roi_x_start, bird_eye_roi_x_end, bird_eye_roi_y_star
 
 class Line_debug:
     # draw lines
+    @staticmethod
     def draw_lines(img, lines):
-        global Offset
         for line in lines:
             x1, y1, x2, y2 = line[0]
             color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
             img = cv2.line(img, (x1, y1+Offset), (x2, y2+Offset), color, 2)
         return img
     # draw rectangle
+    @staticmethod
     def draw_rectangle(img, lpos, rpos, offset=0):
         center = (lpos + rpos) / 2
 
@@ -34,7 +35,7 @@ class Line_debug:
                         (0, 0, 255), 2)
         return img
 
-        
+    @staticmethod   
     def count_lines_by_slope(lines, low, high):
         count = 0
         for x1, y1, x2, y2 in lines:
@@ -45,7 +46,8 @@ class Line_debug:
             if low <= abs(slope) <= high:
                 count += 1
         return count
-
+    
+    @staticmethod
     def divide_left_right(lines):
         # 하이퍼 파라미터 
         # |slope| < 0.1 혹은 |slope| > 20인 경우는 건너뜁니다.
@@ -64,7 +66,7 @@ class Line_debug:
                 right_lines.append([line[0]])
         return left_lines, right_lines
 
-
+    @staticmethod
     # get average m, b of lines
     def get_line_params(lines):
         # sum of x, y, m
@@ -92,9 +94,6 @@ class Line_debug:
 
     # get lpos, rpos
     def get_line_pos(self, img, lines, left=False, right=False):
-        global Width, Height
-        global Offset, Gap
-
         m, b = self.get_line_params(lines)
 
         if m == 0 and b == 0:
@@ -182,6 +181,7 @@ class Line_debug:
 
 
         # 횡단보도인지?
+    @staticmethod
     def process_birdeye(bird_eye_frame):
         """
         Bird-Eye View 프레임에서 ROI 영역 내 수직선 개수를 바탕으로
@@ -197,7 +197,8 @@ class Line_debug:
         lines = cv2.HoughLinesP(edge, 1, math.pi / 180, threshold=20,
                                 minLineLength=10, maxLineGap=10)
         vertical_count = 0
-
+        # 수직선 개수 세기
+        diagonal_count = 0
         color_frame = cv2.cvtColor(bird_eye_frame, cv2.COLOR_GRAY2BGR)
 
         if lines is not None:
@@ -212,7 +213,15 @@ class Line_debug:
                     slope = dy / dx
                     angle_deg = abs(math.degrees(math.atan(slope)))
 
-                if angle_deg >= 80.0:  # 각도로 수직선 판단 (75도 이상)
+                if angle_deg <= 45.0 :  # 대각선 기준
+                    diagonal_count += 1
+                    # 대각선 시각화
+                    cv2.line(color_frame,
+                            (x1 + bird_eye_roi_x_start, y1 + bird_eye_roi_y_start),
+                            (x2 + bird_eye_roi_x_start, y2 + bird_eye_roi_y_start),
+                            (0, 0, 255), 2)
+                
+                elif angle_deg >= 80.0:  # 각도로 수직선 판단 (75도 이상)
                     vertical_count += 1
 
                     # 수직선 시각화
@@ -221,11 +230,12 @@ class Line_debug:
                             (x2 + bird_eye_roi_x_start, y2 + bird_eye_roi_y_start),
                             (0, 0, 255), 2)
 
-
-
-        # 수직선 개수 출력
-        text = "Vertical lines: {}".format(vertical_count)
-        cv2.putText(color_frame, text, (10, 30),
+        #대각선 개수 및 수직선 개수 출력
+        text_diagonal = "Diagonal lines: {}".format(diagonal_count)
+        text_vertical = "Vertical lines: {}".format(vertical_count)
+        cv2.putText(color_frame, text_diagonal, (10, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
+        cv2.putText(color_frame, text_vertical, (10, 50),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
 
         # ROI 영역 시각화 박스 추가
@@ -233,11 +243,11 @@ class Line_debug:
                 (bird_eye_roi_x_end, bird_eye_roi_y_end), 255, 2)
 
 
-        cv2.imshow("Birdeye", color_frame)
+        # cv2.imshow("Birdeye", color_frame)
         # 수직선이 1개 이상이면 횡단보도
-        return vertical_count >= 1
+        return vertical_count >= 1, diagonal_count >= 10
 
-
+    @staticmethod
     def plot_lane_detection(frame, result, lpos, rpos, left_lines, right_lines, lidar_mask=None, show_center=True, window_name="Lane + LiDAR Visualization"):
         # frame: 입력 gray 이미지 (bird-eye view)
         # result: 검출 결과 문자열

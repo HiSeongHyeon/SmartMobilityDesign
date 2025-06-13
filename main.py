@@ -7,7 +7,8 @@ import cv2
 
 from control import XycarControl
 from config import mtx, dist, Width, Height
-from sensor import Camera, Lidar,lidar_to_mask, undistort_and_birdseye
+from sensor import Lidar
+from sensor import Camera
 import numpy as np
 
 # obs or tunnel or crosswalk or stopline
@@ -42,9 +43,13 @@ if __name__ == '__main__':
         #         left_obstacle_driving()
 
         # else:
-        lpos, rpos, is_crosswalk = camera.process_calibration_and_birdeye()
+        lpos, rpos, is_crosswalk, is_stopline = camera.process_calibration_and_birdeye()
+        print"is crosswalk",is_crosswalk
+        print"is stopline",is_stopline
+
 
         center = (lpos + rpos) / 2
+        print"center",center
         angle = control.PID(center)
         control.drive(angle, 5)
 

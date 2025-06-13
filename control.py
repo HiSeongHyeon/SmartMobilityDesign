@@ -7,7 +7,6 @@ import numpy as np
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
 from xycar_msgs.msg import xycar_motor
-from line import classify_line_region_and_lane, plot_lane_detection
 
 class XycarControl:
     def __init__(self):
@@ -29,16 +28,16 @@ class XycarControl:
     def init_PID_gain(self, kp, ki, kd):
         self.kp, self.ki, self.kd = kp, ki, kd
 
-    def PID(self, center, kp, ki, kd):
+    def PID(self, center):
         end_time = time.time()
         dt = end_time - self.start_time
         self.start_time = end_time
 
         error = 320 - center
         derror = error - self.prev_error
-        p_error = kp * error
-        self.i_error += ki * error * dt
-        d_error = kd * derror / dt if dt > 0 else 0
+        p_error = self.kp * error
+        self.i_error += self.ki * error * dt
+        d_error = self.kd * derror / dt if dt > 0 else 0
 
         output = p_error + self.i_error + d_error
         self.prev_error = error

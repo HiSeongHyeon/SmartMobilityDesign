@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 import rospy, time
 import numpy as np
 import cv2
@@ -8,6 +11,7 @@ from std_msgs.msg import String
 from config import Width, Height, R_lidar2cam, T_lidar2cam, mtx, dist, src_pts, dst_pts, Debug
 
 from line import Line_debug
+from collections import deque #stopline_frame_buff 를 위한 큐
 
 class Camera:
     def __init__(self):
@@ -20,7 +24,9 @@ class Camera:
         self.raw_image = np.zeros((480, 640, 3), dtype=np.uint8)
         self.calibration_image = np.zeros((480, 640, 1), dtype=np.uint8)
         self.bird_eye_image = np.zeros((480, 640, 1), dtype=np.uint8)
-        
+    
+        # stopline_frame_buff: 최근 10프레임의 stopline 감지 결과 저장
+        self.stopline_frame_buff = deque([0]*7, maxlen=7)
         rospy.Subscriber("/usb_cam/image_raw", Image, self.img_callback)
         print("image subscriber start") 
         if Debug == True:
@@ -42,36 +48,42 @@ class Camera:
         self.calibration_image = gray
         all_lines = cv2.HoughLinesP(roi,1,math.pi/180,30,30,10)
         if Debug == True:
-            lpos, rpos = self.Line.process_calibration(gray, all_lines)
+            lpos, rpos = self.Line.process_calibration(self.calibration_image, all_lines)
 
         M_perspective = cv2.getPerspectiveTransform(src_pts, dst_pts)
         bird_eye_image = cv2.warpPerspective(gray, M_perspective, (Width, Height))
         self.bird_eye_image = bird_eye_image
         if Debug == True:
-            is_crosswalk = self.Line.process_birdeye(bird_eye_image)
-        return lpos, rpos, is_crosswalk
+            is_crosswalk, is_diagonal = self.Line.process_birdeye(bird_eye_image)
+        if is_diagonal:
+            self.stopline_frame_buff.append(1)
+        else:
+            self.stopline_frame_buff.append(0)
+        if sum(self.stopline_frame_buff) >= 3:
+            is_stopline = True
+        else: is_stopline = False
+        return lpos, rpos, is_crosswalk, is_stopline
 
-    #안씀
-    def change_brid_eye(self, data):
-        print"b"
-        bird_eye_gray, gray = self.undistort_and_birdseye(data, self.cal_mtx, self.cal_roi)
-        if (bird_eye_gray is None or gray is None):
-            print("error")
-        print"c"
-        # if control.lidar_mask is None:
-        #     return
-        # final_image = cv2.merge([bird_eye_gray, control.lidar_mask])
-        # print"d"
-        # final_image_16u = cv2.merge([final_image[:,:,0], final_image[:,:,1]]).astype(np.uint16)
-        # print"e"
-        # ros_image = bridge.cv2_to_imgmsg(final_image_16u, encoding="16UC2")  
-        # print"f"
-        # image_pub.publish(ros_image)
-        bird_eye_gray_msg = self.bridge.cv2_to_imgmsg(bird_eye_gray, encoding="mono8")
-        image_pub.publish(bird_eye_gray_msg)
-        gray_msg = bridge.cv2_to_imgmsg(gray, encoding="mono8")
-        gray_pub.publish(gray_msg)
-        print"g"
+    # def change_brid_eye(self, data):
+    #     print"b"
+    #     bird_eye_gray, gray = self.undistort_and_birdseye(data, self.cal_mtx, self.cal_roi)
+    #     if (bird_eye_gray is None or gray is None):
+    #         print("error")
+    #     print"c"
+    #     # if control.lidar_mask is None:
+    #     #     return
+    #     # final_image = cv2.merge([bird_eye_gray, control.lidar_mask])
+    #     # print"d"
+    #     # final_image_16u = cv2.merge([final_image[:,:,0], final_image[:,:,1]]).astype(np.uint16)
+    #     # print"e"
+    #     # ros_image = bridge.cv2_to_imgmsg(final_image_16u, encoding="16UC2")  
+    #     # print"f"
+    #     # image_pub.publish(ros_image)
+    #     bird_eye_gray_msg = self.bridge.cv2_to_imgmsg(bird_eye_gray, encoding="mono8")
+    #     image_pub.publish(bird_eye_gray_msg)
+    #     gray_msg = bridge.cv2_to_imgmsg(gray, encoding="mono8")
+    #     gray_pub.publish(gray_msg)
+    #     print"g"
 
 
 
@@ -86,12 +98,10 @@ class Lidar:
 
     def lidar_callback(self, scan):
         self.lidar_points = scan.ranges
-        print"B"
         # lidar_mask = self.lidar_to_mask(scan, self.cal_mtx)
         # print"C"
         # self.set_lidar_mask(lidar_mask)
-        print"D"
-        
+
 
 
 
