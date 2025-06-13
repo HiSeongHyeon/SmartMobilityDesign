@@ -26,7 +26,7 @@ if __name__ == '__main__':
         rospy.sleep(0.1)
 
     while not rospy.is_shutdown():
-        # obs = is_obstacle_ahead()
+        obs = lidar.is_obstacle_ahead()
 
         if is_tunnel():
             print("this is tunnel")
