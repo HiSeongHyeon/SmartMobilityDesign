@@ -100,9 +100,9 @@ class Line_debug:
 
             x1, y1, x2, y2 = Line
             
-            if (slope < 0) and (x2 < Width/2 - 90):
+            if (slope < 0) and (x2 < Width/2 + 25):
                 left_lines.append([Line.tolist()])
-            elif (slope > 0) and (x1 > Width/2 + 90):
+            elif (slope > 0) and (x1 > Width/2 - 25):
                 right_lines.append([Line.tolist()])
 
         return left_lines, right_lines

@@ -75,28 +75,6 @@ class Camera:
         else: is_stopline = False
         return lpos, rpos, is_crosswalk, is_stopline
 
-    # def change_brid_eye(self, data):
-    #     print"b"
-    #     bird_eye_gray, gray = self.undistort_and_birdseye(data, self.cal_mtx, self.cal_roi)
-    #     if (bird_eye_gray is None or gray is None):
-    #         print("error")
-    #     print"c"
-    #     # if control.lidar_mask is None:
-    #     #     return
-    #     # final_image = cv2.merge([bird_eye_gray, control.lidar_mask])
-    #     # print"d"
-    #     # final_image_16u = cv2.merge([final_image[:,:,0], final_image[:,:,1]]).astype(np.uint16)
-    #     # print"e"
-    #     # ros_image = bridge.cv2_to_imgmsg(final_image_16u, encoding="16UC2")  
-    #     # print"f"
-    #     # image_pub.publish(ros_image)
-    #     bird_eye_gray_msg = self.bridge.cv2_to_imgmsg(bird_eye_gray, encoding="mono8")
-    #     image_pub.publish(bird_eye_gray_msg)
-    #     gray_msg = bridge.cv2_to_imgmsg(gray, encoding="mono8")
-    #     gray_pub.publish(gray_msg)
-    #     print"g"
-
-
 
 class Lidar:
     def __init__(self):
@@ -113,11 +91,6 @@ class Lidar:
         # print"C"
         # self.set_lidar_mask(lidar_mask)
 
-
-
-
-
-    ################################################################################
 
     # Recognition: obstacle
     def is_obstacle_ahead(self, threshold=0.4, check_range=200, count_limit=5):
@@ -138,7 +111,7 @@ class Lidar:
             return 0
 
     # Recognition: tunnel
-    def is_tunnel(self, threshold=0.4, check_range=40, count_limit=20):
+    def is_tunnel(self, threshold=0.4, check_range=40, count_limit=10):
         count1 = 0
         count2 = 0
         for deg in range(check_range + 1):
@@ -155,7 +128,6 @@ class Lidar:
         print"right lidar", self.lidar_points[360]
         return (count1 > count_limit) and (count2 > count_limit)
 
-    ################################################################################
 
     # Performing: when obastacle is right side
     def right_obstacle_driving(self):

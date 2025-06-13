@@ -36,7 +36,7 @@ class XycarControl:
         dt = end_time - self.start_time
         self.start_time = end_time
 
-        error = 320 - center
+        error = 340 - center
         derror = error - self.prev_error
         p_error = kp * error
         self.i_error += ki * error * dt
