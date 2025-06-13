@@ -100,14 +100,13 @@ class Lidar:
 
     # Recognition: obstacle
     def is_obstacle_ahead(threshold=0.5, check_range=60, count_limit=6):
-        global lidar_points
         countright = 0
         countleft = 0
 
         for deg in range(check_range+1):
-            if 0.1 < lidar_points[deg+180] <= threshold:
+            if 0.1 < self.lidar_points[deg+180] <= threshold:
                 countright += 1
-            if 0.1 < lidar_points[180-deg] <= threshold:
+            if 0.1 < self.lidar_points[180-deg] <= threshold:
                 countleft += 1
 
         if countright > count_limit and countleft < count_limit:
