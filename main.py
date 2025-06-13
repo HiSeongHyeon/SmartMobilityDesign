@@ -6,9 +6,8 @@ import cv2
 
 
 from control import XycarControl
-from config import mtx, dist, Width, Height
-from sensor import Lidar
-from sensor import Camera
+from config import mtx, dist, Width, Height, stop_completed
+from sensor import Camera, Lidar
 import numpy as np
 
 # obs or tunnel or crosswalk or stopline
@@ -27,20 +26,38 @@ if __name__ == '__main__':
         rospy.sleep(0.1)
 
     while not rospy.is_shutdown():
-        # obs = is_obstacle_ahead()
+        is_obs = lidar.is_obstacle_ahead()
+        is_tunnel = lidar.is_tunnel()
+        
+        if is_tunnel:
+            print("this is tunnel")
+            left = lidar.lidar_points[0]
+            right = lidar.lidar_points[360]
+            angle = control.tunnel_PID(left, right)
+            control.drive(angle, 5)
 
-        # if is_tunnel():
-        #     print("this is tunnel")
-        #     in_tunnel()
+        elif is_obs:
+            if obs == 1:
+                print("=== obstacle is right side ===")
+                distance, theta = lidar.right_obstacle_driving()
+                if theta > 90:
+                    angle = -obstacle_PID(distance, theta)
+                else:
+                    angle = obstacle_PID(distance, theta)
+                print("avg distance and theta = ", distance, theta)
+                print("left angle = ", angle)
+                drive(angle, 5)
 
-        # elif obs != 0:
-        #     if obs == 1:
-        #         print("=== obstacle is right side ===")
-        #         right_obstacle_driving()
-
-        #     if obs == 2:
-        #         print("=== obstacle is left side ===")
-        #         left_obstacle_driving()
+            if obs == 2:
+                print("=== obstacle is left side ===")
+                distance, theta = lidar.left_obstacle_driving()
+                if theta > 90:
+                    angle = obstacle_PID(distance, theta)
+                else:
+                    angle = -obstacle_PID(distance, theta)
+                print("avg distance and theta = ", distance, theta)
+                print("right angle = ", angle)
+                drive(angle, 5)
 
         # else:
         lpos, rpos, is_crosswalk, is_stopline = camera.process_calibration_and_birdeye()
@@ -52,6 +69,11 @@ if __name__ == '__main__':
         print"center",center
         angle = control.PID(center)
         control.drive(angle, 5)
+
+        if(is_crosswalk and not stop_completed):
+            control.drive(0, 0)
+            time.sleep(5)
+            stop_completed = True
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break

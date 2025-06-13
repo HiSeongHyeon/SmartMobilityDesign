@@ -109,15 +109,14 @@ class Lidar:
     ################################################################################
 
     # Recognition: obstacle
-    def is_obstacle_ahead(threshold=0.5, check_range=60, count_limit=6):
-        global lidar_points
+    def is_obstacle_ahead(threshold=0.4, check_range=200, count_limit=5):
         countright = 0
         countleft = 0
 
         for deg in range(check_range+1):
-            if 0.1 < lidar_points[deg+180] <= threshold:
+            if 0.01 < self.lidar_points[deg+180] <= threshold:
                 countright += 1
-            if 0.1 < lidar_points[180-deg] <= threshold:
+            if 0.01 < self.lidar_points[180-deg] <= threshold:
                 countleft += 1
 
         if countright > count_limit and countleft < count_limit:
@@ -128,17 +127,16 @@ class Lidar:
             return 0
 
     # Recognition: tunnel
-    def is_tunnel(threshold=0.5, check_range=10, count_limit=5):
-        global lidar_points
+    def is_tunnel(threshold=0.4, count_iter=10, count_limit=5):
         count1 = 0
         count2 = 0
-        for deg in range(check_range + 1):
-            if np.isinf(lidar_points[0]) or np.isinf(lidar_points[360]):
+        for deg in range(count_iter + 1):
+            if np.isinf(self.lidar_points[0]) or np.isinf(self.lidar_points[360]):
                 continue
             else:
-                if 0.01 < lidar_points[0] <= threshold:
+                if 0.01 < self.lidar_points[0] <= threshold:
                     count1 += 1
-                if 0.01 < lidar_points[360] <= threshold:
+                if 0.01 < self.lidar_points[360] <= threshold:
                     count2 += 1
         return (count1 > count_limit) and (count2 > count_limit)
 
@@ -146,14 +144,13 @@ class Lidar:
 
     # Performing: when obastacle is right side
     def right_obstacle_driving():
-        global lidar_points
         rtn = list()
         distance = 0
         count = 0
-        for i in range(300):
-            if not np.isinf(lidar_points[i+180]):
-                if 0.1 < lidar_points[i+180] < 0.4:
-                    rtn.append(lidar_points[i+180])
+        for i in range(200):
+            if not np.isinf(self.lidar_points[i+180]):
+                if 0.01 < self.lidar_points[i+180] < 0.4:
+                    rtn.append(self.lidar_points[i+180])
                 else:
                     rtn.append(0)
             else:
@@ -166,21 +163,17 @@ class Lidar:
                 count += 1
                 if count == 5:
                     break
-        angle = obstacle_PID(distance / 5, i/2)
-        print("avg distance and theta = ", distance / 5, i/2)
-        print("left angle = ", angle)
-        drive(angle, 5)
+        return distance/5, i/2
 
     # Performing: when obastacle is left side
     def left_obstacle_driving():
-        global lidar_points
         rtn = list()
         distance = 0
         count = 0
-        for i in range(300):
-            if not np.isinf(lidar_points[180-i]):
-                if 0.1 < lidar_points[180-i] <0.4:
-                    rtn.append(lidar_points[180-i])
+        for i in range(200):
+            if not np.isinf(self.lidar_points[180-i]):
+                if 0.01 < self.lidar_points[180-i] < 0.4:
+                    rtn.append(self.lidar_points[180-i])
                 else:
                     rtn.append(0)
             else:
@@ -193,19 +186,8 @@ class Lidar:
                 count += 1
                 if count == 5:  
                     break
-        angle = -obstacle_PID(distance / 5, i/2)
-        print("avg distance and theta = ", distance / 5, i/2)
-        print("right angle = ", angle)
-        drive(angle, 5)
-
-    # Performing: tunnel
-    def in_tunnel():
-        global lidar_points
-        left = lidar_points[0]
-        right = lidar_points[360]
-        angle = tunnel_PID(left, right)
-        speed = 5
-        drive(angle, speed)
+        return distance/5, i/2
+        
 
 
 

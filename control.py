@@ -28,7 +28,7 @@ class XycarControl:
     def init_PID_gain(self, kp, ki, kd):
         self.kp, self.ki, self.kd = kp, ki, kd
 
-    def PID(self, center):
+    def PID(self, center, kp=0.37, ki=0.001, kd=0.06):
         end_time = time.time()
         dt = end_time - self.start_time
         self.start_time = end_time
@@ -81,7 +81,7 @@ class XycarControl:
         dt = end_time - self.start_time
         self.start_time = end_time
 
-        error = (input_right - input_left) * 300
+        error = (input_right - input_left) * 250
         derror = error - tunnel_prev_error
         p_error = kp * error
         tunnel_i_error = tunnel_i_error + ki * error * dt
