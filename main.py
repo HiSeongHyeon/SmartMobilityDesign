@@ -6,7 +6,7 @@ import cv2
 
 
 from control import XycarControl
-from config import mtx, dist, Width, Height
+from config import mtx, dist, Width, Height, stop_completed
 from sensor import Camera, Lidar,lidar_to_mask, undistort_and_birdseye
 import numpy as np
 
@@ -47,6 +47,11 @@ if __name__ == '__main__':
         center = (lpos + rpos) / 2
         angle = control.PID(center)
         control.drive(angle, 5)
+
+        if(is_crosswalk and not stop_completed):
+            control.drive(0, 0)
+            time.sleep(5)
+            stop_completed = True
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break

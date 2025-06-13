@@ -235,7 +235,7 @@ class Line_debug:
 
         cv2.imshow("Birdeye", color_frame)
         # 수직선이 1개 이상이면 횡단보도
-        return vertical_count >= 1
+        return vertical_count >= 10
 
 
     def plot_lane_detection(frame, result, lpos, rpos, left_lines, right_lines, lidar_mask=None, show_center=True, window_name="Lane + LiDAR Visualization"):
