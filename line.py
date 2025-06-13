@@ -100,9 +100,9 @@ class Line_debug:
 
             x1, y1, x2, y2 = Line
             
-            if (slope < 0) and (x2 < Width/2 - 90):
+            if (slope < 0) and (x2 < Width/2 + 25):
                 left_lines.append([Line.tolist()])
-            elif (slope > 0) and (x1 > Width/2 + 90):
+            elif (slope > 0) and (x1 > Width/2 - 25):
                 right_lines.append([Line.tolist()])
 
         return left_lines, right_lines
@@ -178,7 +178,7 @@ class Line_debug:
         #roi2 = draw_rectangle(roi2, lpos, rpos)
 
         # show image
-        cv2.imshow('calibration', frame)
+        # cv2.imshow('calibration', frame)
 
         return lpos, rpos
 
@@ -216,7 +216,7 @@ class Line_debug:
                     slope = dy / dx
                     angle_deg = abs(math.degrees(math.atan(slope)))
 
-                if angle_deg <= 45.0 :  # 대각선 기준
+                if angle_deg <= 55.0 and angle_deg >= 40.0:  # 대각선 기준
                     diagonal_count += 1
                     # 대각선 시각화
                     cv2.line(color_frame,
@@ -246,7 +246,7 @@ class Line_debug:
                 (bird_eye_roi_x_end, bird_eye_roi_y_end), 255, 2)
 
 
-        # cv2.imshow("Birdeye", color_frame)
+        cv2.imshow("Birdeye", color_frame)
         # 수직선이 1개 이상이면 횡단보도
         return vertical_count >= 10, diagonal_count >= 10
 
