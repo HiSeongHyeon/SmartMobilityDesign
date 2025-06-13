@@ -39,7 +39,10 @@ if __name__ == '__main__':
             if obs == 1:
                 print("=== obstacle is right side ===")
                 distance, theta = lidar.right_obstacle_driving()
-                angle = obstacle_PID(distance, theta)
+                if theta > 90:
+                    angle = -obstacle_PID(distance, theta)
+                else:
+                    angle = obstacle_PID(distance, theta)
                 print("avg distance and theta = ", distance, theta)
                 print("left angle = ", angle)
                 drive(angle, 5)
@@ -47,7 +50,10 @@ if __name__ == '__main__':
             if obs == 2:
                 print("=== obstacle is left side ===")
                 distance, theta = lidar.left_obstacle_driving()
-                angle = -obstacle_PID(distance, theta)
+                if theta > 90:
+                    angle = obstacle_PID(distance, theta)
+                else:
+                    angle = -obstacle_PID(distance, theta)
                 print("avg distance and theta = ", distance, theta)
                 print("right angle = ", angle)
                 drive(angle, 5)
