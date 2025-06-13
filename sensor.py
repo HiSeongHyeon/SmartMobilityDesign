@@ -179,10 +179,8 @@ class Lidar:
                 count += 1
                 if count == 5:  
                     break
-        angle = -obstacle_PID(distance / 5, i/2)
-        print("avg distance and theta = ", distance / 5, i/2)
-        print("right angle = ", angle)
-        drive(angle, 5)
+        return distance, i/2
+        
 
 
 
