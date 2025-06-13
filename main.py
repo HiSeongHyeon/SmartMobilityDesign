@@ -26,16 +26,17 @@ if __name__ == '__main__':
         rospy.sleep(0.1)
 
     while not rospy.is_shutdown():
-        obs = lidar.is_obstacle_ahead()
-
-        if is_tunnel():
+        is_obs = lidar.is_obstacle_ahead()
+        is_tunnel = lidar.is_tunnel()
+        
+        if is_tunnel:
             print("this is tunnel")
             left = lidar.lidar_points[0]
             right = lidar.lidar_points[360]
             angle = tunnel_PID(left, right)
             drive(angle, 5)
 
-        elif obs != 0:
+        elif is_obs:
             if obs == 1:
                 print("=== obstacle is right side ===")
                 distance, theta = lidar.right_obstacle_driving()
