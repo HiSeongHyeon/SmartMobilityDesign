@@ -19,7 +19,7 @@ Width_Offset = 40
 # Bird eye ROI 설정
 bird_eye_roi_x_start = 200
 bird_eye_roi_x_end = 440
-bird_eye_roi_y_start = 20
+bird_eye_roi_y_start = 5
 bird_eye_roi_y_end = 180
 
 

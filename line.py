@@ -190,9 +190,8 @@ class Line_debug:
         from config import bird_eye_roi_x_start, bird_eye_roi_x_end, bird_eye_roi_y_start, bird_eye_roi_y_end
 
         if(crosswalk_completed):
-            tmp = bird_eye_roi_y_end
-            bird_eye_roi_y_end = 2*bird_eye_roi_y_end-bird_eye_roi_y_start
-            bird_eye_roi_y_start = tmp
+            bird_eye_roi_y_start = 180
+            bird_eye_roi_y_end = 340
         bird_eye_roi = bird_eye_frame[bird_eye_roi_y_start:bird_eye_roi_y_end, bird_eye_roi_x_start:bird_eye_roi_x_end]
         blur = cv2.GaussianBlur(bird_eye_roi, (5, 5), 0)
         edge = cv2.Canny(blur, 70, 90)
@@ -260,7 +259,7 @@ class Line_debug:
 
         cv2.imshow("Birdeye", color_frame)
         # 수직선이 1개 이상이면 횡단보도
-        return vertical_count >= 10, diagonal_count >= 6, horizental_count >=4
+        return vertical_count >= 9, diagonal_count >= 6, horizental_count >=4
 
     @staticmethod
     def plot_lane_detection(frame, result, lpos, rpos, left_lines, right_lines, lidar_mask=None, show_center=True, window_name="Lane + LiDAR Visualization"):
