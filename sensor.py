@@ -10,7 +10,7 @@ from sensor_msgs.msg import Image, LaserScan
 from std_msgs.msg import String
 from config import Width, Height, R_lidar2cam, T_lidar2cam, mtx, dist, src_pts, dst_pts, Debug
 
-from line import Line_debug
+from line import Line_debug, Line
 from collections import deque #stopline_frame_buff 를 위한 큐
 
 class Camera:
@@ -35,7 +35,8 @@ class Camera:
         print("image subscriber start") 
         if Debug == True:
             self.Line = Line_debug()
-
+        else:
+            self.Line = Line()
 
     def img_callback(self, data):
         self.raw_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
@@ -62,14 +63,19 @@ class Camera:
 
         self.calibration_image = edge_img
         all_lines = cv2.HoughLinesP(roi,1,math.pi/180,30,30,10)
+
         if Debug == True:
             lpos, rpos = self.Line.process_calibration(self.calibration_image, all_lines)
-
+        else:
+            lpos, rpos = self.Line.process_calibration(all_lines)
+        
         M_perspective = cv2.getPerspectiveTransform(src_pts, dst_pts)
         bird_eye_image = cv2.warpPerspective(gray, M_perspective, (Width, Height))
         self.bird_eye_image = bird_eye_image
-        if Debug == True:
-            is_crosswalk, is_diagonal, is_horizental = self.Line.process_birdeye(bird_eye_image, crosswalk_completed=self.crosswalk_completed)
+
+
+        is_crosswalk, is_diagonal, is_horizental = self.Line.process_birdeye(bird_eye_image, crosswalk_completed=self.crosswalk_completed)
+        
         if is_horizental:
             self.horizentalline_frame_buff.append(1)
             print("horizentalline_frame_buff",sum(self.horizentalline_frame_buff))  
@@ -80,7 +86,7 @@ class Camera:
             print("stopline buff",sum(self.stopline_frame_buff))
         else:
             self.stopline_frame_buff.append(0)
-        if sum(self.stopline_frame_buff) >= 6 and sum(self.horizentalline_frame_buff) >= 5:
+        if sum(self.stopline_frame_buff) >= 14 and sum(self.horizentalline_frame_buff) >= 3:
             is_stopline = True
             
         else: is_stopline = False

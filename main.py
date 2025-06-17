@@ -16,6 +16,8 @@ import numpy as np
 if __name__ == '__main__':
     rospy.init_node('auto_drive')
     camera = Camera()
+    # camera.crosswalk_completed = True
+    # crosswalk_completed = True
     lidar = Lidar()
     control = XycarControl()
     control.init_publisher()
@@ -81,6 +83,7 @@ if __name__ == '__main__':
             crosswalk_completed = True
             camera.crosswalk_completed = crosswalk_completed
 
+        
         
         elif(crosswalk_completed and is_stopline):
             print"========= this is stopline ========="
