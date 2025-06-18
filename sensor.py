@@ -27,7 +27,7 @@ class Camera:
     
         # stopline_frame_buff: 최근 10프레임의 stopline 감지 결과 저장
         self.stopline_frame_buff = deque([0]*20, maxlen=20)
-        self.horizentalline_frame_buff = deque([0]*25, maxlen=40)
+        self.horizentalline_frame_buff = deque([0]*50, maxlen=50)
 
         self.crosswalk_completed = False
 
@@ -86,9 +86,17 @@ class Camera:
             print("stopline buff",sum(self.stopline_frame_buff))
         else:
             self.stopline_frame_buff.append(0)
-        if sum(self.stopline_frame_buff) >= 14 and sum(self.horizentalline_frame_buff) >= 3:
+
+        # 최근 3개 원소의 합 계산
+        sum_last3_stopline = sum(list(self.stopline_frame_buff)[-3:])
+        sum_last3_horizontal = sum(list(self.horizentalline_frame_buff)[-3:])
+        print"sum stopline",sum_last3_stopline
+        print"sum horizental",sum_last3_horizontal
+        if (sum(self.stopline_frame_buff) >= 5 and
+            sum(self.horizentalline_frame_buff) >= 8 and
+            sum_last3_stopline == 0 and
+            sum_last3_horizontal == 0):
             is_stopline = True
-            
         else: is_stopline = False
         return lpos, rpos, is_crosswalk, is_stopline
 

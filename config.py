@@ -27,5 +27,5 @@ R_lidar2cam = np.eye(3)
 T_lidar2cam = np.array([[0], [-5], [10]])
 
 
-Debug = True
+Debug = False
 crosswalk_completed = False

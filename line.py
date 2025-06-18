@@ -183,8 +183,8 @@ class Line_debug:
         bird_eye_roi_y_start = self.bird_eye_roi_y_start
         bird_eye_roi_y_end = self.bird_eye_roi_y_end
         if(crosswalk_completed):
-            bird_eye_roi_y_start = 280
-            bird_eye_roi_y_end = 440
+            bird_eye_roi_y_start = 00# 280
+            bird_eye_roi_y_end = 120 #440
         bird_eye_roi = bird_eye_frame[bird_eye_roi_y_start:bird_eye_roi_y_end, bird_eye_roi_x_start:bird_eye_roi_x_end]
         blur = cv2.GaussianBlur(bird_eye_roi, (5, 5), 0)
         edge = cv2.Canny(blur, 70, 90)
@@ -212,7 +212,7 @@ class Line_debug:
                     slope = dy / dx
                     angle_deg = math.degrees(math.atan(slope))
 
-                if angle_deg <= 10.0 and angle_deg >= -10:  # 대각선 기준
+                if angle_deg <= 10.0 and angle_deg >= -50:  # 대각선 기준
                     horizental_count += 1
                     # 대각선 시각화
                     cv2.line(color_frame,
@@ -240,11 +240,13 @@ class Line_debug:
         #대각선 개수 및 수직선 개수 출력
         text_diagonal = "Diagonal lines: {}".format(diagonal_count)
         text_vertical = "Vertical lines: {}".format(vertical_count)
+        text_horizental = "Horizental lines: {}".format(horizental_count)
         cv2.putText(color_frame, text_diagonal, (10, 30),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
-        cv2.putText(color_frame, text_vertical, (10, 50),
+        cv2.putText(color_frame, text_horizental, (10, 50),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
-
+        cv2.putText(color_frame, text_vertical, (10, 70),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
         # ROI 영역 시각화 박스 추가
         cv2.rectangle(color_frame, (bird_eye_roi_x_start, bird_eye_roi_y_start),
                 (bird_eye_roi_x_end, bird_eye_roi_y_end), 255, 2)
@@ -342,8 +344,8 @@ class Line(Line_debug):
         bird_eye_roi_y_start = self.bird_eye_roi_y_start
         bird_eye_roi_y_end = self.bird_eye_roi_y_end
         if(crosswalk_completed):
-            bird_eye_roi_y_start = 280
-            bird_eye_roi_y_end = 440
+            bird_eye_roi_y_start = 00# 280
+            bird_eye_roi_y_end = 120 #440
         bird_eye_roi = bird_eye_frame[bird_eye_roi_y_start:bird_eye_roi_y_end, bird_eye_roi_x_start:bird_eye_roi_x_end]
         blur = cv2.GaussianBlur(bird_eye_roi, (5, 5), 0)
         edge = cv2.Canny(blur, 70, 90)
@@ -369,7 +371,7 @@ class Line(Line_debug):
                     slope = dy / dx
                     angle_deg = math.degrees(math.atan(slope))
 
-                if angle_deg <= 10.0 and angle_deg >= -10:  # 대각선 기준
+                if angle_deg <= 10.0 and angle_deg >= -40:  # 대각선 기준
                     horizental_count += 1
         
                 if angle_deg <= 60.0 and angle_deg >= 0:  # 대각선 기준
@@ -381,5 +383,5 @@ class Line(Line_debug):
 
 
         # 수직선이 1개 이상이면 횡단보도
-        return vertical_count >= 9, diagonal_count >= 2, horizental_count >=2
+        return vertical_count >= 9, diagonal_count >= 2, horizental_count >=3
 

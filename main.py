@@ -16,8 +16,6 @@ import numpy as np
 if __name__ == '__main__':
     rospy.init_node('auto_drive')
     camera = Camera()
-    # camera.crosswalk_completed = True
-    # crosswalk_completed = True
     lidar = Lidar()
     control = XycarControl()
     control.init_publisher()
