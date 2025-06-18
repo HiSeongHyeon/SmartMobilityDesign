@@ -18,13 +18,13 @@ class Camera:
         self.Offset = 340
         self.Gap = 40
 
-        self.bridge = CvBridge()    
+        self.bridge = CvBridge()
         self.cal_mtx, self.cal_roi = cv2.getOptimalNewCameraMatrix(mtx, dist
                                     , (Width, Height), 1, (Width, Height))
         self.raw_image = np.zeros((480, 640, 3), dtype=np.uint8)
         self.calibration_image = np.zeros((480, 640, 1), dtype=np.uint8)
         self.bird_eye_image = np.zeros((480, 640, 1), dtype=np.uint8)
-    
+
         # stopline_frame_buff: 최근 10프레임의 stopline 감지 결과 저장
         self.stopline_frame_buff = deque([0]*20, maxlen=20)
         self.horizentalline_frame_buff = deque([0]*50, maxlen=50)
@@ -32,7 +32,7 @@ class Camera:
         self.crosswalk_completed = False
 
         rospy.Subscriber("/usb_cam/image_raw", Image, self.img_callback)
-        print("image subscriber start") 
+        print("image subscriber start")
         if Debug == True:
             self.Line = Line_debug()
         else:
@@ -68,17 +68,17 @@ class Camera:
             lpos, rpos = self.Line.process_calibration(self.calibration_image, all_lines)
         else:
             lpos, rpos = self.Line.process_calibration(all_lines)
-        
+
         M_perspective = cv2.getPerspectiveTransform(src_pts, dst_pts)
         bird_eye_image = cv2.warpPerspective(gray, M_perspective, (Width, Height))
         self.bird_eye_image = bird_eye_image
 
 
         is_crosswalk, is_diagonal, is_horizental = self.Line.process_birdeye(bird_eye_image, crosswalk_completed=self.crosswalk_completed)
-        
+
         if is_horizental:
             self.horizentalline_frame_buff.append(1)
-            print("horizentalline_frame_buff",sum(self.horizentalline_frame_buff))  
+            print("horizentalline_frame_buff",sum(self.horizentalline_frame_buff))
         else:
             self.horizentalline_frame_buff.append(0)
         if is_diagonal:
@@ -108,7 +108,7 @@ class Lidar:
         self.cal_mtx, self.cal_roi = cv2.getOptimalNewCameraMatrix(mtx, dist
                                     , (Width, Height), 1, (Width, Height))
         self.lidar_points = None
-        self.lidar_mask = None     
+        self.lidar_mask = None
 
     def lidar_callback(self, scan):
         self.lidar_points = scan.ranges
@@ -136,7 +136,7 @@ class Lidar:
             return 0
 
     # Recognition: tunnel
-    def is_tunnel(self, threshold=0.4, check_range=40, count_limit=10):
+    def is_tunnel(self, threshold=0.45, check_range=40, count_limit=5):
         count1 = 0
         count2 = 0
         for deg in range(check_range + 1):
@@ -192,10 +192,10 @@ class Lidar:
             else:
                 distance += rtn[i]
                 count += 1
-                if count == 5:  
+                if count == 5:
                     break
         return distance/5, i/2
-        
+
     def tunnel_driving(self):
         left = list()
         right = list()
@@ -222,9 +222,9 @@ class Lidar:
         lidar_cam = lidar_cam[mask]
 
         pts_2d, _ = cv2.projectPoints(
-            lidar_cam, 
-            np.zeros((3,1)), 
-            np.zeros((3,1)), 
+            lidar_cam,
+            np.zeros((3,1)),
+            np.zeros((3,1)),
             cal_mtx,
             None
         )
