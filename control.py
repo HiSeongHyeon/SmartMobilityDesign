@@ -20,7 +20,7 @@ class XycarControl:
         self.stop_completed = False
         self.crosswalk_detected = False
         self.lidar_mask = None
-        self.pub = None  
+        self.pub = None
         self.kp =None
         self.ki = None
         self.kd = None
@@ -61,7 +61,8 @@ class XycarControl:
         dt = end_time - self.start_time
         self.start_time = end_time
 
-        error = (0.5 - input * math.sin(math.radians(theta))) * 150
+        #error = (0.5 - input * math.sin(math.radians(theta))) * 150
+        error = (0.3 - input * math.sin(math.radians(theta))) * 300
         derror = error - self.prev_error
         p_error = kp * error
         self.i_error = self.i_error + ki * error * dt
@@ -77,7 +78,7 @@ class XycarControl:
         return -output
 
     # PID Control: driving tunnel
-    def tunnel_PID(self, input_left, input_right, kp=0.4, ki=0.0005, kd=0.15):
+    def tunnel_PID(self, input_left, input_right, kp=0.39, ki=0.005, kd=0.15):
         end_time = time.time()
         dt = end_time - self.start_time
         self.start_time = end_time
@@ -96,7 +97,7 @@ class XycarControl:
             output = -50
 
         return output
-    
+
     def drive(self, angle, speed):
         if self.pub is None:
             rospy.logerr("Publisher is not initialized")
