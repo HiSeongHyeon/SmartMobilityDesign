@@ -36,13 +36,13 @@ class Line_debug:
                         (0, 255, 0), 2)
         cv2.rectangle(img, (center-5, 15 + offset),
                         (center+5, 25 + offset),
-                        (0, 255, 0), 2)    
+                        (0, 255, 0), 2)
         cv2.rectangle(img, (315, 15 + offset),
                         (325, 25 + offset),
                         (0, 0, 255), 2)
         return img
 
-    @staticmethod   
+    @staticmethod
     def count_lines_by_slope(lines, low, high):
         count = 0
         for x1, y1, x2, y2 in lines:
@@ -53,12 +53,12 @@ class Line_debug:
             if low <= abs(slope) <= high:
                 count += 1
         return count
-    
+
 
 
     @staticmethod
     def divide_left_right(lines):
-        # 하이퍼 파라미터 
+        # 하이퍼 파라미터
         # |slope| < 0.1 혹은 |slope| > 20인 경우는 건너뜁니다.
 
         low_slope_threshold = 0.001
@@ -75,7 +75,7 @@ class Line_debug:
                 slope = 0
             else:
                 slope = float(y2-y1) / float(x2-x1)
-            
+
             if abs(slope) > low_slope_threshold and abs(slope) < high_slope_threshold:
                 slopes.append(slope)
                 new_lines.append(line[0])
@@ -89,7 +89,7 @@ class Line_debug:
             slope = slopes[j]
 
             x1, y1, x2, y2 = Line
-            
+
             if (slope < 0) and (x2 < Width/2 + 25):
                 left_lines.append([Line.tolist()])
             elif (slope > 0) and (x1 > Width/2 - 25):
@@ -142,7 +142,7 @@ class Line_debug:
             cv2.line(img, (int(x1), Height), (int(x2), (Height/2)), (255, 0,0), 3)
 
         return img, int(pos)
-    
+
     # show image and return lpos, rpos
     def process_calibration(self, frame, all_lines):
 
@@ -150,7 +150,7 @@ class Line_debug:
         if all_lines is None:
             return 0, 640
         left_lines, right_lines = self.divide_left_right(all_lines)
-     
+
         # get center of lines
         frame, lpos = self.get_line_pos(frame, left_lines, left=True)
         frame, rpos = self.get_line_pos(frame, right_lines, right=True)
@@ -160,7 +160,7 @@ class Line_debug:
         frame = self.draw_lines(frame, left_lines)
         frame = self.draw_lines(frame, right_lines)
         frame = cv2.line(frame, (230, 235), (410, 235), (255,255,255), 2)
-                                    
+
         # draw rectangle
         frame = self.draw_rectangle(frame, lpos, rpos, offset=Offset)
         #roi2 = cv2.cvtColor(roi, cv2.COLOR_GRAY2BGR)
@@ -218,16 +218,16 @@ class Line_debug:
                     cv2.line(color_frame,
                         (x1 + bird_eye_roi_x_start, y1 + bird_eye_roi_y_start),
                         (x2 + bird_eye_roi_x_start, y2 + bird_eye_roi_y_start),
-                        (0, 0, 255), 2)               
+                        (0, 0, 255), 2)
                 if angle_deg <= 60.0 and angle_deg >= 0:  # 대각선 기준
                     diagonal_count += 1
                     # 대각선 시각화
                     cv2.line(color_frame,
                         (x1 + bird_eye_roi_x_start, y1 + bird_eye_roi_y_start),
                         (x2 + bird_eye_roi_x_start, y2 + bird_eye_roi_y_start),
-                        (0, 0, 255), 2)               
+                        (0, 0, 255), 2)
 
-                
+
                 elif abs(angle_deg) >= 80.0:  # 각도로 수직선 판단 (75도 이상)
                     vertical_count += 1
 
@@ -261,7 +261,7 @@ class Line(Line_debug):
 
     @staticmethod
     def divide_left_right(lines):
-        # 하이퍼 파라미터 
+        # 하이퍼 파라미터
         # |slope| < 0.1 혹은 |slope| > 20인 경우는 건너뜁니다.
 
         low_slope_threshold = 0.001
@@ -278,7 +278,7 @@ class Line(Line_debug):
                 slope = 0
             else:
                 slope = float(y2-y1) / float(x2-x1)
-            
+
             if abs(slope) > low_slope_threshold and abs(slope) < high_slope_threshold:
                 slopes.append(slope)
                 new_lines.append(line[0])
@@ -292,7 +292,7 @@ class Line(Line_debug):
             slope = slopes[j]
 
             x1, y1, x2, y2 = Line
-            
+
             if (slope < 0) and (x2 < Width/2 + 25):
                 left_lines.append([Line.tolist()])
             elif (slope > 0) and (x1 > Width/2 - 25):
@@ -316,7 +316,7 @@ class Line(Line_debug):
 
 
         return int(pos)
-    
+
     # show image and return lpos, rpos
     def process_calibration(self, all_lines):
 
@@ -324,12 +324,12 @@ class Line(Line_debug):
         if all_lines is None:
             return 0, 640
         left_lines, right_lines = self.divide_left_right(all_lines)
-     
+
         # get center of lines
         lpos = self.get_line_pos(left_lines, left=True)
         rpos = self.get_line_pos(right_lines, right=True)
 
-                                    
+
         return lpos, rpos
 
 
@@ -373,11 +373,11 @@ class Line(Line_debug):
 
                 if angle_deg <= 10.0 and angle_deg >= -40:  # 대각선 기준
                     horizental_count += 1
-        
+
                 if angle_deg <= 60.0 and angle_deg >= 0:  # 대각선 기준
                     diagonal_count += 1
 
-                
+
                 elif abs(angle_deg) >= 80.0:  # 각도로 수직선 판단 (75도 이상)
                     vertical_count += 1
 
