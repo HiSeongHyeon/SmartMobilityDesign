@@ -23,9 +23,5 @@ bird_eye_roi_y_start = 5
 bird_eye_roi_y_end = 180
 
 
-R_lidar2cam = np.eye(3)
-T_lidar2cam = np.array([[0], [-5], [10]])
-
-
 Debug = False
 crosswalk_completed = False
