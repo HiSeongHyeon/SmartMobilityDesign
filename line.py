@@ -6,7 +6,6 @@ import math, random
 from config import Width, Height, Offset, Gap
 
 class Line_debug:
-
     def __init__(self):
         # config에서 bird-eye ROI 영역 좌표값을 가져와서 인스턴스 변수로 저장
         from config import bird_eye_roi_x_start, bird_eye_roi_x_end, bird_eye_roi_y_start, bird_eye_roi_y_end
@@ -178,14 +177,14 @@ class Line_debug:
         bird_eye_roi_y_start = self.bird_eye_roi_y_start
         bird_eye_roi_y_end = self.bird_eye_roi_y_end
         if(crosswalk_completed):
-            bird_eye_roi_y_start = 00# 280
+            bird_eye_roi_y_start = 00 #280
             bird_eye_roi_y_end = 120 #440
         bird_eye_roi = bird_eye_frame[bird_eye_roi_y_start:bird_eye_roi_y_end, bird_eye_roi_x_start:bird_eye_roi_x_end]
         blur = cv2.GaussianBlur(bird_eye_roi, (5, 5), 0)
         edge = cv2.Canny(blur, 70, 90)
 
         # HoughLinesP로 직선 검출
-        # 20개 이상 누적되면 선분으로 판단 // 최소 길이 5픽셀 이상 // 간격이 10픽셀 이하일 경우 하나의 선분으로 간주
+        # 40개 이상 누적되면 선분으로 판단 | 최소 길이 10픽셀 이상 | 간격이 10픽셀 이하일 경우 하나의 선분으로 간주
         lines = cv2.HoughLinesP(edge, 1, math.pi / 180, threshold=40,
                                 minLineLength=10, maxLineGap=10)
         vertical_count = 0    # 수직선 개수
@@ -244,7 +243,7 @@ class Line_debug:
 
 
         cv2.imshow("Birdeye", color_frame)
-        # 수직선이 9개 이상이면 is_crosswalk, 대각선 2개 이상이면 is_diagonal, 수평선 2개 이상이면 is_horizental
+        # 수직선이 9개 이상이면 is_crosswalk, 대각선 2개 이상이면 is_diagonal, 수평선 3개 이상이면 is_horizental
         return vertical_count >= 9, diagonal_count >= 2, horizental_count >=3
 
 
@@ -329,8 +328,6 @@ class Line(Line_debug):
 
         return lpos, rpos
 
-
-        # 횡단보도인지?
     def process_birdeye(self, bird_eye_frame, crosswalk_completed):
         """
         Bird-Eye View 프레임에서 ROI 내 검출된 선분의 각도를 분석하여
@@ -350,7 +347,8 @@ class Line(Line_debug):
         blur = cv2.GaussianBlur(bird_eye_roi, (5, 5), 0)
         edge = cv2.Canny(blur, 70, 90)
         # HoughLinesP로 직선 검출
-        # 20개 이상 누적되면 선분으로 판단 // 최소 길이 5픽셀 이상 // 간격이 10픽셀 이하일 경우 하나의 선분으로 간주
+
+        # 40개 이상 누적되면 선분으로 판단 // 최소 길이 10픽셀 이상 // 간격이 10픽셀 이하일 경우 하나의 선분으로 간주
         lines = cv2.HoughLinesP(edge, 1, math.pi / 180, threshold=40,
                                 minLineLength=10, maxLineGap=10)
         vertical_count = 0    # 수직선 개수
@@ -379,7 +377,5 @@ class Line(Line_debug):
                 elif abs(angle_deg) >= 80.0:  # 각도로 수직선 판단 (80도 이상)
                     vertical_count += 1
 
-
-        # 수직선이 1개 이상이면 횡단보도
         return vertical_count >= 9, diagonal_count >= 2, horizental_count >=3
 
