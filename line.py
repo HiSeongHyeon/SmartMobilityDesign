@@ -7,7 +7,6 @@ import math, random
 from config import Width, Height, Offset, Gap, Width_Offset
 
 class Line_debug:
-
     def __init__(self):
         from config import bird_eye_roi_x_start, bird_eye_roi_x_end, bird_eye_roi_y_start, bird_eye_roi_y_end
         self.bird_eye_roi_x_start = bird_eye_roi_x_start
@@ -163,34 +162,25 @@ class Line_debug:
 
         # draw rectangle
         frame = self.draw_rectangle(frame, lpos, rpos, offset=Offset)
-        #roi2 = cv2.cvtColor(roi, cv2.COLOR_GRAY2BGR)
-        #roi2 = draw_rectangle(roi2, lpos, rpos)
-
-        # show image
-        # cv2.imshow('calibration', frame)
 
         return lpos, rpos
 
-
-        # 횡단보도인지?
     def process_birdeye(self, bird_eye_frame, crosswalk_completed):
-        """
-        Bird-Eye View 프레임에서 ROI 영역 내 수직선 개수를 바탕으로
-        횡단보도인지 여부를 판단 (기울기를 각도로 변환하여 기준 적용)
-        """
+        # Bird-Eye View 프레임에서 ROI 영역 내 수직선 개수를 바탕으로 횡단보도인지 여부를 판단 (기울기를 각도로 변환하여 기준 적용)
+
         bird_eye_roi_x_start = self.bird_eye_roi_x_start
         bird_eye_roi_x_end = self.bird_eye_roi_x_end
         bird_eye_roi_y_start = self.bird_eye_roi_y_start
         bird_eye_roi_y_end = self.bird_eye_roi_y_end
         if(crosswalk_completed):
-            bird_eye_roi_y_start = 00# 280
+            bird_eye_roi_y_start = 00 #280
             bird_eye_roi_y_end = 120 #440
         bird_eye_roi = bird_eye_frame[bird_eye_roi_y_start:bird_eye_roi_y_end, bird_eye_roi_x_start:bird_eye_roi_x_end]
         blur = cv2.GaussianBlur(bird_eye_roi, (5, 5), 0)
         edge = cv2.Canny(blur, 70, 90)
 
         # HoughLinesP로 직선 검출
-        # 20개 이상 누적되면 선분으로 판단 // 최소 길이 5픽셀 이상 // 간격이 10픽셀 이하일 경우 하나의 선분으로 간주
+        # 40개 이상 누적되면 선분으로 판단 | 최소 길이 10픽셀 이상 | 간격이 10픽셀 이하일 경우 하나의 선분으로 간주
         lines = cv2.HoughLinesP(edge, 1, math.pi / 180, threshold=40,
                                 minLineLength=10, maxLineGap=10)
         vertical_count = 0
@@ -253,7 +243,7 @@ class Line_debug:
 
 
         cv2.imshow("Birdeye", color_frame)
-        # 수직선이 1개 이상이면 횡단보도
+        
         return vertical_count >= 9, diagonal_count >= 2, horizental_count >=2
 
 
@@ -332,25 +322,22 @@ class Line(Line_debug):
 
         return lpos, rpos
 
-
-        # 횡단보도인지?
     def process_birdeye(self, bird_eye_frame, crosswalk_completed):
-        """
-        Bird-Eye View 프레임에서 ROI 영역 내 수직선 개수를 바탕으로
-        횡단보도인지 여부를 판단 (기울기를 각도로 변환하여 기준 적용)
-        """
+        # Bird-Eye View 프레임에서 ROI 영역 내 수직선 개수를 바탕으로 횡단보도인지 여부를 판단 (기울기를 각도로 변환하여 기준 적용)
+
         bird_eye_roi_x_start = self.bird_eye_roi_x_start
         bird_eye_roi_x_end = self.bird_eye_roi_x_end
         bird_eye_roi_y_start = self.bird_eye_roi_y_start
         bird_eye_roi_y_end = self.bird_eye_roi_y_end
         if(crosswalk_completed):
-            bird_eye_roi_y_start = 00# 280
+            bird_eye_roi_y_start = 00 # 280
             bird_eye_roi_y_end = 120 #440
         bird_eye_roi = bird_eye_frame[bird_eye_roi_y_start:bird_eye_roi_y_end, bird_eye_roi_x_start:bird_eye_roi_x_end]
         blur = cv2.GaussianBlur(bird_eye_roi, (5, 5), 0)
         edge = cv2.Canny(blur, 70, 90)
         # HoughLinesP로 직선 검출
-        # 20개 이상 누적되면 선분으로 판단 // 최소 길이 5픽셀 이상 // 간격이 10픽셀 이하일 경우 하나의 선분으로 간주
+
+        # 40개 이상 누적되면 선분으로 판단 // 최소 길이 10픽셀 이상 // 간격이 10픽셀 이하일 경우 하나의 선분으로 간주
         lines = cv2.HoughLinesP(edge, 1, math.pi / 180, threshold=40,
                                 minLineLength=10, maxLineGap=10)
         vertical_count = 0
@@ -378,10 +365,8 @@ class Line(Line_debug):
                     diagonal_count += 1
 
 
-                elif abs(angle_deg) >= 80.0:  # 각도로 수직선 판단 (75도 이상)
+                elif abs(angle_deg) >= 80.0:  # 각도로 수직선 판단 (85도 이상)
                     vertical_count += 1
 
-
-        # 수직선이 1개 이상이면 횡단보도
         return vertical_count >= 9, diagonal_count >= 2, horizental_count >=3
 
