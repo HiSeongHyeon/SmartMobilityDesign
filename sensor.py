@@ -133,17 +133,19 @@ class Lidar:
 
 
 
-    # Recognition: obstacle
+    # 장애물 판단 함수( 0.4m 의 전방 기준 100도의 범위를 탐색)
     def is_obstacle_ahead(self, threshold=0.4, check_range=200, count_limit=5):
         countright = 0
         countleft = 0
 
+        #좌/우측 범위 탐색
         for deg in range(check_range+1):
             if 0.01 < self.lidar_points[deg+180] <= threshold:
                 countright += 1
             if 0.01 < self.lidar_points[180-deg] <= threshold:
                 countleft += 1
-
+        
+        #각 case에 맞는 리턴 값 1: 우측 장애물, 2: 좌측 장애물 0: 장애물 없음 
         if countright > count_limit and countleft < count_limit:
             return 1
         elif countright < count_limit and countleft > count_limit:
@@ -151,7 +153,7 @@ class Lidar:
         else:
             return 0
 
-    # Recognition: tunnel
+    # 터널 인식 함수 (0.45m 검사, 정 좌/우측 기준 +20도의 범위를 탐색)
     def is_tunnel(self, threshold=0.45, check_range=40, count_limit=5):
         count1 = 0
         count2 = 0
@@ -163,14 +165,16 @@ class Lidar:
                     count1 += 1
                 if 0.01 < self.lidar_points[360-check_range] <= threshold:
                     count2 += 1
+        # 두 조건이 모두 만족해야지 터널이라고 판단
         return (count1 > count_limit) and (count2 > count_limit)
 
 
-    # Performing: when obastacle is right side
+    # 우측에 장애물이 있을 경우 주행
     def right_obstacle_driving(self):
         rtn = list()
         distance = 0
         count = 0
+        # 라이다 범위를 돌며 0.4m 이내의 라이다 값과 그 각도를 받고, 5개 이상 찍힐 경우 장애물로 판단 후 거리와 각도 리턴
         for i in range(200):
             if not np.isinf(self.lidar_points[i+180]):
                 if 0.01 < self.lidar_points[i+180] < 0.4:
@@ -187,13 +191,15 @@ class Lidar:
                 count += 1
                 if count == 5:
                     break
+        # 5개의 점이므로 평균을 내고, 각도 역시 라이다 각도를 현실 각도로 통일
         return distance/5, i/2
 
-    # Performing: when obastacle is left side
+    # 좌측에 장애물이 있을 경우 주행
     def left_obstacle_driving(self):
         rtn = list()
         distance = 0
         count = 0
+        # 라이다 범위를 돌며 0.4m 이내의 라이다 값과 그 각도를 받고, 5개 이상 찍힐 경우 장애물로 판단 후 거리와 각도 리턴
         for i in range(200):
             if not np.isinf(self.lidar_points[180-i]):
                 if 0.01 < self.lidar_points[180-i] < 0.4:
@@ -210,11 +216,14 @@ class Lidar:
                 count += 1
                 if count == 5:
                     break
+        # 5개의 점이므로 평균을 내고, 각도 역시 라이다 각도를 현실 각도로 통일
         return distance/5, i/2
 
+    # 터널 주행 함수
     def tunnel_driving(self):
         left = list()
         right = list()
+        # 좌측 우측 라이다 값을 20도 범위만큼 받고, 이 평균 값을 각각 좌측거리, 우측 거리로 사용
         for i in range(40):
             if not np.isinf(self.lidar_points[i]):
                 left.append(self.lidar_points[i])
