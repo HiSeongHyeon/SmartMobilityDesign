@@ -5,7 +5,6 @@ import rospy
 import time, math
 import numpy as np
 from cv_bridge import CvBridge
-from sensor_msgs.msg import Image
 from xycar_msgs.msg import xycar_motor
 
 class XycarControl:
@@ -28,8 +27,6 @@ class XycarControl:
     def init_publisher(self, pub_topic='xycar_motor'):
         self.pub = rospy.Publisher(pub_topic, xycar_motor, queue_size=1)
 
-    def init_PID_gain(self, kp, ki, kd):
-        self.kp, self.ki, self.kd = kp, ki, kd
 
     def PID(self, center, kp=0.37, ki=0.001, kd=0.06):
         end_time = time.time()
@@ -54,14 +51,10 @@ class XycarControl:
 
     # PID Control: avoiding obstacle
     def obstacle_PID(self, input, theta, kp=0.41, ki=0.001, kd=0.05):
-        # self.i_error = 0.0 두 전역 변수 대신에 지역변수 그냥쓰면 안되나
-        # self.prev_error = 0.0
-        # obstacle start time
+
         end_time = time.time()
         dt = end_time - self.start_time
         self.start_time = end_time
-
-        #error = (0.5 - input * math.sin(math.radians(theta))) * 150
         error = (0.3 - input * math.sin(math.radians(theta))) * 300
         derror = error - self.prev_error
         p_error = kp * error
