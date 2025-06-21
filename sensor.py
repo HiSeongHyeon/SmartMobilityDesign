@@ -31,7 +31,7 @@ class Camera:
         self.bird_eye_image = np.zeros((480, 640, 1), dtype=np.uint8)
 
         # 정지선/수평선 감지 버퍼 (최근 N프레임 결과 저장)
-        self.stopline_frame_buff = deque([0]*20, maxlen=20)      # 정지선 감지 버퍼
+        self.diagonalline_frame_buff = deque([0]*20, maxlen=20)      # 정지선 감지 버퍼
         self.horizentalline_frame_buff = deque([0]*50, maxlen=50) # 수평선 감지 버퍼
 
         self.crosswalk_completed = False # 횡단보도 통과 상태 플래그
@@ -98,21 +98,19 @@ class Camera:
         # 7. 감지 결과 버퍼 업데이트
         if is_horizental:
             self.horizentalline_frame_buff.append(1)
-            print("horizentalline_frame_buff",sum(self.horizentalline_frame_buff))
         else:
             self.horizentalline_frame_buff.append(0)
         if is_diagonal:
-            self.stopline_frame_buff.append(1)
-            print("stopline buff",sum(self.stopline_frame_buff))
+            self.diagonalline_frame_buff.append(1)
         else:
-            self.stopline_frame_buff.append(0)
+            self.diagonalline_frame_buff.append(0)
 
         # 8. 정지선 판단 로직 (대각선과 수평선을 인식 한 뒤, 대각선과 수평선이 3프레임동안 사라진 경우 정지선으로 판단)
-        sum_last3_stopline = sum(list(self.stopline_frame_buff)[-3:])
+        sum_last3_stopline = sum(list(self.diagonalline_frame_buff)[-3:])
         sum_last3_horizontal = sum(list(self.horizentalline_frame_buff)[-3:])
 
         # 버퍼 조건 충족 시 정지선 판정
-        if (sum(self.stopline_frame_buff) >= 5 and
+        if (sum(self.diagonalline_frame_buff) >= 5 and
             sum(self.horizentalline_frame_buff) >= 8 and
             sum_last3_stopline == 0 and
             sum_last3_horizontal == 0):
@@ -128,7 +126,7 @@ class Lidar:
         self.cal_mtx, self.cal_roi = cv2.getOptimalNewCameraMatrix(mtx, dist
                                     , (Width, Height), 1, (Width, Height))
         self.lidar_points = None
-        self.lidar_mask = None
+
 
     def lidar_callback(self, scan):
         self.lidar_points = scan.ranges
