@@ -27,12 +27,14 @@ class XycarControl:
     def init_publisher(self, pub_topic='xycar_motor'):
         self.pub = rospy.Publisher(pub_topic, xycar_motor, queue_size=1)
 
-
+    # 기본 주행 PID 제어 
     def PID(self, center, kp=0.37, ki=0.001, kd=0.06):
         end_time = time.time()
         dt = end_time - self.start_time
         self.start_time = end_time
 
+        # 도로 중심 320 보다 좌측으로 달릴 수 있도록 error 설정 
+        # 340으로 설정 시 정중앙으로 주행 (카메라 편향으로 인하여) 370으로 설정 시 약간 좌측(인코스로 주행)
         error = 340 + 30 - center
         derror = error - self.prev_error
         p_error = kp * error
@@ -49,12 +51,14 @@ class XycarControl:
 
         return -output
 
-    # PID Control: avoiding obstacle
+    # 장애물 회피 PID 제어
     def obstacle_PID(self, input, theta, kp=0.41, ki=0.001, kd=0.05):
 
         end_time = time.time()
         dt = end_time - self.start_time
         self.start_time = end_time
+
+        #차량 중심과 장애물 끝점이 0.3m 거리를 두고 주행할 수 있도록 설정 (300은 스케일 가중치)
         error = (0.3 - input * math.sin(math.radians(theta))) * 300
         derror = error - self.prev_error
         p_error = kp * error
@@ -70,12 +74,13 @@ class XycarControl:
 
         return -output
 
-    # PID Control: driving tunnel
+    # 터널 주행 PID 제어
     def tunnel_PID(self, input_left, input_right, kp=0.39, ki=0.005, kd=0.15):
         end_time = time.time()
         dt = end_time - self.start_time
         self.start_time = end_time
 
+        # 좌측과 우측 라이다 값 차이를 error로 사용 (250은 스케일 가중치)
         error = (input_right - input_left) * 250
         derror = error - self.prev_error
         p_error = kp * error
