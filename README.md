@@ -5,7 +5,7 @@
 
 <img width="796" height="447" alt="image" src="https://github.com/user-attachments/assets/9c573f7e-8690-4166-9f50-e15427e1305c" />
 
-## Demo / Features
+## Features
 
 - 차선 중심 기반 PID 주행 (직선/곡선)
 - Bird-Eye View 기반 횡단보도 인식 → 5s 정지 후 재출발
@@ -120,6 +120,9 @@ Zhang’s Method 기반으로 카메라 내부 파라미터 `K` 및 왜곡 계�
 
 <img width="357" height="396" alt="image" src="https://github.com/user-attachments/assets/325ce439-8a92-40e4-a0f6-c87e893a5881" />
 
+## Video
+
+- [주행 영상 (YouTube)](https://www.youtube.com/watch?v=RG5xjRwamPY)
 
 ## Team / Roles
 
@@ -128,4 +131,4 @@ Zhang’s Method 기반으로 카메라 내부 파라미터 `K` 및 왜곡 계�
 | 김민섭 | 주행(직선/곡선), 장애물 인식 및 제어, 터널 인식 및 제어 |
 | 정지환 | 주행(직선/곡선), 장애물 인식 및 제어, 터널 인식 및 제어 |
 | 최성현 | Camera Calibration, Bird-Eye View, 횡단보도 인식 및 제어 코드 구현 |
-| 김민영 | 모듈화(구조 설계), 정지선 인식 및 제어 구현 |
+| 김민영(팀장) | 모듈화(구조 설계), 정지선 인식 및 제어 구현 |
